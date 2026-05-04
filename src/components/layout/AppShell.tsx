@@ -21,7 +21,6 @@ function navItems(role: string, lang: 'bm' | 'en'): NavItem[] {
     { to: '/loans',             icon: '📦', label: s.loan_item },
     { to: '/tasks-admin',       icon: '📋', label: s.task_mgmt },
     { to: '/assets',            icon: '🗄️',  label: s.asset_mgmt },
-    { to: '/staff',             icon: '👥', label: s.staff },
     { to: '/history',           icon: '📜', label: s.history },
   ]
   return [

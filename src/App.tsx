@@ -48,7 +48,7 @@ function AppRoutes() {
         <Route path="history" element={<HistoryPage />} />
         <Route path="review"      element={<RequireRole roles={['supervisor','owner']}><ReviewPage /></RequireRole>} />
         <Route path="reports"     element={<RequireRole roles={['supervisor','owner']}><ReportsPage /></RequireRole>} />
-        <Route path="staff"       element={<RequireRole roles={['supervisor','owner']}><StaffPage /></RequireRole>} />
+        <Route path="staff"       element={<RequireRole roles={['owner']}><StaffPage /></RequireRole>} />
         <Route path="tasks-admin" element={<RequireRole roles={['supervisor','owner']}><TasksAdminPage /></RequireRole>} />
         <Route path="assets"       element={<RequireRole roles={['supervisor','owner']}><AssetPage /></RequireRole>} />
         <Route path="branches"     element={<RequireRole roles={['owner']}><BranchPage /></RequireRole>} />
