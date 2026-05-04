@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useApp } from '../context/AppContext'
 import { STRINGS } from '../utils/i18n'
 import Card from '../components/ui/Card'
@@ -11,6 +11,7 @@ interface ReviewLog {
   staffName: string
   staffAvatar: string
   branch: string
+  photo: string   // base64 data URL
   loggedAt: string
 }
 
@@ -31,15 +32,16 @@ export default function GoogleReviewPage() {
   const s     = STRINGS[lang]
   const isOwner = state.user?.role === 'owner'
 
-  const [logs, setLogs]           = useState<ReviewLog[]>(loadTodayReviews)
-  const [target, setTarget]       = useState(getReviewTarget)
-  const [reviewUrl, setReviewUrl] = useState(localStorage.getItem(URL_KEY) ?? '')
-  const [editUrl, setEditUrl]     = useState(localStorage.getItem(URL_KEY) ?? '')
+  const [logs, setLogs]             = useState<ReviewLog[]>(loadTodayReviews)
+  const [target, setTarget]         = useState(getReviewTarget)
+  const [reviewUrl, setReviewUrl]   = useState(localStorage.getItem(URL_KEY) ?? '')
+  const [editUrl, setEditUrl]       = useState(localStorage.getItem(URL_KEY) ?? '')
   const [editTarget, setEditTarget] = useState(String(getReviewTarget()))
   const [showSettings, setShowSettings] = useState(false)
-  const [flash, setFlash]         = useState('')
-  const [showQr, setShowQr]       = useState(false)
-  const [pop, setPop]             = useState(false)
+  const [flash, setFlash]           = useState('')
+  const [showQr, setShowQr]         = useState(false)
+  const [lightbox, setLightbox]     = useState<string | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   const count     = logs.length
   const pct       = Math.min(100, Math.round((count / target) * 100))
@@ -51,18 +53,25 @@ export default function GoogleReviewPage() {
 
   const showFlash = (msg: string) => { setFlash(msg); setTimeout(() => setFlash(''), 3000) }
 
-  const logReview = () => {
-    if (completed) return
-    const entry: ReviewLog = {
-      id: `gr_${Date.now()}`,
-      staffName:   state.user?.name ?? '',
-      staffAvatar: state.user?.avatar ?? '👤',
-      branch:      state.user?.branch ?? '',
-      loggedAt:    new Date().toISOString(),
+  const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || completed) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const photo = reader.result as string
+      const entry: ReviewLog = {
+        id: `gr_${Date.now()}`,
+        staffName:   state.user?.name ?? '',
+        staffAvatar: state.user?.avatar ?? '👤',
+        branch:      state.user?.branch ?? '',
+        photo,
+        loggedAt:    new Date().toISOString(),
+      }
+      setLogs(prev => [entry, ...prev])
+      if (count + 1 >= target) showFlash(lang === 'bm' ? '🎉 Sasaran tercapai! Tugasan selesai!' : '🎉 Target reached! Task complete!')
     }
-    setLogs(prev => [entry, ...prev])
-    setPop(true); setTimeout(() => setPop(false), 600)
-    if (count + 1 >= target) showFlash(lang === 'bm' ? '🎉 Sasaran tercapai! Tugasan selesai!' : '🎉 Target reached! Task complete!')
+    reader.readAsDataURL(file)
+    e.target.value = ''
   }
 
   const sendWhatsApp = () => {
@@ -168,27 +177,35 @@ export default function GoogleReviewPage() {
         </div>
         <ProgressBar value={pct} color={completed ? '#10b981' : '#f59e0b'} height="lg" />
 
-        {/* Big tap button */}
+        {/* Camera button */}
         <div className="flex flex-col items-center mt-5 mb-2">
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handlePhoto}
+          />
           <button
-            onClick={logReview}
+            onClick={() => !completed && fileRef.current?.click()}
             disabled={completed}
             className={`w-28 h-28 rounded-full flex flex-col items-center justify-center gap-1 transition-all active:scale-95 shadow-lg ${
               completed
                 ? 'bg-emerald-100 dark:bg-emerald-900/30 cursor-default'
-                : `bg-amber-400 hover:bg-amber-500 ${pop ? 'scale-110' : ''}`
+                : 'bg-amber-400 hover:bg-amber-500'
             }`}
           >
-            <span className="text-4xl">{completed ? '✅' : '⭐'}</span>
+            <span className="text-4xl">{completed ? '✅' : '📷'}</span>
             <span className="text-xs font-bold text-white">
               {completed
                 ? (lang === 'bm' ? 'Siap!' : 'Done!')
-                : (lang === 'bm' ? 'Dapat Review' : 'Got Review')}
+                : (lang === 'bm' ? 'Ambil Gambar' : 'Take Photo')}
             </span>
           </button>
           {!completed && (
             <p className="text-xs text-[var(--text-muted)] mt-3 text-center">
-              {lang === 'bm' ? `Lagi ${target - count} review untuk selesai` : `${target - count} more to complete`}
+              {lang === 'bm' ? `Lagi ${target - count} gambar untuk selesai` : `${target - count} more photos to complete`}
             </p>
           )}
         </div>
@@ -251,10 +268,15 @@ export default function GoogleReviewPage() {
           <div className="divide-y divide-[var(--border)]">
             {logs.map((log, i) => (
               <div key={log.id} className="flex items-center gap-3 px-4 py-3">
-                <span className="text-amber-400 font-bold text-sm w-5 text-center">{i + 1}</span>
-                <Avatar emoji={log.staffAvatar} size="sm" />
+                <span className="text-amber-400 font-bold text-sm w-5 text-center flex-shrink-0">{i + 1}</span>
+                <button onClick={() => setLightbox(log.photo)} className="flex-shrink-0">
+                  <img src={log.photo} alt="" className="w-12 h-12 rounded-lg object-cover border border-[var(--border)]" />
+                </button>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-[var(--text)]">{log.staffName}</div>
+                  <div className="flex items-center gap-1.5">
+                    <Avatar emoji={log.staffAvatar} size="sm" />
+                    <div className="text-sm font-medium text-[var(--text)] truncate">{log.staffName}</div>
+                  </div>
                 </div>
                 <span className="text-xs text-[var(--text-muted)] flex-shrink-0">
                   {new Date(log.loggedAt).toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' })}
@@ -263,6 +285,17 @@ export default function GoogleReviewPage() {
             ))}
           </div>
         </Card>
+      )}
+
+      {/* Lightbox */}
+      {lightbox && (
+        <div
+          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
+          onClick={() => setLightbox(null)}
+        >
+          <img src={lightbox} alt="" className="max-w-full max-h-full rounded-lg object-contain" />
+          <button className="absolute top-4 right-4 text-white text-2xl w-10 h-10 flex items-center justify-center bg-black/40 rounded-full">×</button>
+        </div>
       )}
     </div>
   )
