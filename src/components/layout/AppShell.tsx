@@ -9,9 +9,10 @@ type NavItem = { to: string; icon: string; label: string }
 function navItems(role: string, lang: 'bm' | 'en'): NavItem[] {
   const s = STRINGS[lang as 'bm' | 'en']
   if (role === 'staff') return [
-    { to: '/',        icon: '🏠', label: s.home },
-    { to: '/tasks',   icon: '📋', label: s.tasks },
-    { to: '/history', icon: '📜', label: s.history },
+    { to: '/',               icon: '🏠', label: s.home },
+    { to: '/tasks',          icon: '📋', label: s.tasks },
+    { to: '/google-review',  icon: '⭐', label: s.google_review },
+    { to: '/history',        icon: '📜', label: s.history },
   ]
   if (role === 'supervisor') return [
     { to: '/review',            icon: '🔍', label: s.review },
@@ -21,6 +22,7 @@ function navItems(role: string, lang: 'bm' | 'en'): NavItem[] {
     { to: '/loans',             icon: '📦', label: s.loan_item },
     { to: '/tasks-admin',       icon: '📋', label: s.task_mgmt },
     { to: '/assets',            icon: '🗄️',  label: s.asset_mgmt },
+    { to: '/google-review',     icon: '⭐', label: s.google_review },
     { to: '/history',           icon: '📜', label: s.history },
   ]
   return [
@@ -33,6 +35,7 @@ function navItems(role: string, lang: 'bm' | 'en'): NavItem[] {
     { to: '/assets',            icon: '🗄️',  label: s.asset_mgmt },
     { to: '/branches',          icon: '🏪', label: s.branch_setup },
     { to: '/staff',             icon: '👥', label: s.staff },
+    { to: '/google-review',     icon: '⭐', label: s.google_review },
     { to: '/history',           icon: '📜', label: s.history },
   ]
 }
