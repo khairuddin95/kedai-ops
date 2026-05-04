@@ -160,18 +160,26 @@ export default function LoginPage() {
 
   // ── Try schedule → defaultShift → manual picker ───────────
   const autoLogin = async (user: User) => {
-    // 1. Check weekly schedule for today
+    // Owner/supervisor: auto-detect by time, skip shift picker
+    if (user.role === 'owner' || user.role === 'supervisor') {
+      const shiftId = new Date().getHours() < 15 ? 'morning' : 'evening'
+      const shift = SHIFTS.find(s => s.id === shiftId)!
+      dispatch({ type: 'LOGIN', user, shift })
+      navigate('/dashboard')
+      return
+    }
+    // Staff: 1. Check weekly schedule for today
     if (supabaseConfigured) {
       const todayShiftId = await db.getUserTodayShift(user.id)
       if (todayShiftId) {
         const shift = SHIFTS.find(s => s.id === todayShiftId)
-        if (shift) { dispatch({ type: 'LOGIN', user, shift }); navigate(user.role === 'staff' ? '/' : '/dashboard'); return }
+        if (shift) { dispatch({ type: 'LOGIN', user, shift }); navigate('/'); return }
       }
     }
     // 2. Fall back to admin-assigned default shift
     if (user.defaultShift) {
       const shift = SHIFTS.find(s => s.id === user.defaultShift)
-      if (shift) { dispatch({ type: 'LOGIN', user, shift }); navigate(user.role === 'staff' ? '/' : '/dashboard'); return }
+      if (shift) { dispatch({ type: 'LOGIN', user, shift }); navigate('/'); return }
     }
     // 3. Manual selection
     setStep(3)
