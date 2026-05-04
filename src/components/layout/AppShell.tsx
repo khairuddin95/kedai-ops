@@ -9,11 +9,9 @@ type NavItem = { to: string; icon: string; label: string }
 function navItems(role: string, lang: 'bm' | 'en'): NavItem[] {
   const s = STRINGS[lang as 'bm' | 'en']
   if (role === 'staff') return [
-    { to: '/',             icon: '🏠', label: s.home },
-    { to: '/tasks',        icon: '📋', label: s.tasks },
-    { to: '/maintenance',  icon: '🔧', label: s.maintenance },
-    { to: '/loans',        icon: '📦', label: s.loan_item },
-    { to: '/history',      icon: '📜', label: s.history },
+    { to: '/',        icon: '🏠', label: s.home },
+    { to: '/tasks',   icon: '📋', label: s.tasks },
+    { to: '/history', icon: '📜', label: s.history },
   ]
   if (role === 'supervisor') return [
     { to: '/review',            icon: '🔍', label: s.review },

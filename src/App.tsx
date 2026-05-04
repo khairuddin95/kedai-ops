@@ -52,9 +52,9 @@ function AppRoutes() {
         <Route path="tasks-admin" element={<RequireRole roles={['supervisor','owner']}><TasksAdminPage /></RequireRole>} />
         <Route path="assets"       element={<RequireRole roles={['supervisor','owner']}><AssetPage /></RequireRole>} />
         <Route path="branches"     element={<RequireRole roles={['owner']}><BranchPage /></RequireRole>} />
-        <Route path="maintenance"      element={<MaintenancePage />} />
+        <Route path="maintenance"      element={<RequireRole roles={['supervisor','owner']}><MaintenancePage /></RequireRole>} />
         <Route path="maintenance-dash" element={<RequireRole roles={['supervisor','owner']}><MaintenanceDashboardPage /></RequireRole>} />
-        <Route path="loans"        element={<LoanPage />} />
+        <Route path="loans"        element={<RequireRole roles={['supervisor','owner']}><LoanPage /></RequireRole>} />
         <Route path="*" element={<Navigate to={state.user?.role === 'staff' ? '/' : state.user?.role === 'supervisor' ? '/review' : '/reports'} replace />} />
       </Route>
       <Route path="*" element={<Navigate to="/login" replace />} />
