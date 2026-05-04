@@ -44,7 +44,7 @@ export default function ReviewPage() {
 
       <div className="flex flex-col md:flex-row gap-4 md:h-[calc(100vh-180px)]">
         {/* ── Left panel (list) — hidden on mobile when detail is open ── */}
-        <div className={`md:w-[380px] md:min-w-[380px] flex flex-col bg-[var(--surface)] border border-[var(--border)] rounded-lg overflow-hidden ${showDetail ? 'hidden md:flex' : 'flex'}`}>
+        <div className={`md:w-[380px] md:min-w-[380px] flex-col bg-[var(--surface)] border border-[var(--border)] rounded-lg overflow-hidden ${showDetail ? 'hidden md:flex' : 'flex'}`}>
           {/* Header + tabs */}
           <div className="p-4 border-b border-[var(--border)]">
             <div className="flex items-center justify-between mb-3">
@@ -105,7 +105,7 @@ export default function ReviewPage() {
         </div>
 
         {/* ── Right panel (detail) — hidden on mobile when nothing selected ── */}
-        <div className={`flex-1 flex flex-col bg-[var(--surface)] border border-[var(--border)] rounded-lg overflow-hidden ${showDetail ? 'flex' : 'hidden md:flex'}`}>
+        <div className={`flex-1 flex-col bg-[var(--surface)] border border-[var(--border)] rounded-lg overflow-hidden ${showDetail ? 'flex' : 'hidden md:flex'}`}>
           {!selected ? (
             <div className="flex-1 flex items-center justify-center text-[var(--text-muted)]">
               <div className="text-center">
