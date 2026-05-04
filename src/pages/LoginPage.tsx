@@ -136,8 +136,7 @@ export default function LoginPage() {
     setLoading(false)
     if (!user) { setError('Gagal menyimpan PIN. Cuba lagi.'); setPin(''); setConfirmPin(''); setPinSubStep('enter'); return }
     setVerified(user)
-    if (user.defaultShift) { loginWithShift(user, user.defaultShift); return }
-    setStep(3)
+    await autoLogin(user)
   }
 
   const handleVerifyPin = async (enteredPin: string) => {
@@ -153,30 +152,29 @@ export default function LoginPage() {
       }
     }
     setLoading(false)
-    if (lockError) {
-      setError(lockError)
-      setPin('')
-      return
-    }
-    if (!user) {
-      setError(s.pin_incorrect)
-      setTimeout(() => { setPin(''); setError('') }, 600)
-      return
-    }
+    if (lockError) { setError(lockError); setPin(''); return }
+    if (!user) { setError(s.pin_incorrect); setTimeout(() => { setPin(''); setError('') }, 600); return }
     setVerified(user)
+    await autoLogin(user)
+  }
+
+  // ── Try schedule → defaultShift → manual picker ───────────
+  const autoLogin = async (user: User) => {
+    // 1. Check weekly schedule for today
+    if (supabaseConfigured) {
+      const todayShiftId = await db.getUserTodayShift(user.id)
+      if (todayShiftId) {
+        const shift = SHIFTS.find(s => s.id === todayShiftId)
+        if (shift) { dispatch({ type: 'LOGIN', user, shift }); navigate(user.role === 'staff' ? '/' : '/dashboard'); return }
+      }
+    }
+    // 2. Fall back to admin-assigned default shift
     if (user.defaultShift) {
       const shift = SHIFTS.find(s => s.id === user.defaultShift)
       if (shift) { dispatch({ type: 'LOGIN', user, shift }); navigate(user.role === 'staff' ? '/' : '/dashboard'); return }
     }
+    // 3. Manual selection
     setStep(3)
-  }
-
-  // ── Auto-login helper when shift is already assigned ──────
-  const loginWithShift = (user: User, shiftId: import('../types').ShiftId) => {
-    const shift = SHIFTS.find(s => s.id === shiftId)
-    if (!shift) { setStep(3); return }
-    dispatch({ type: 'LOGIN', user, shift })
-    navigate(user.role === 'staff' ? '/' : '/dashboard')
   }
 
   // ── Step 3: start shift ────────────────────────────────────

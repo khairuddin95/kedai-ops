@@ -17,6 +17,7 @@ function navItems(role: string, lang: 'bm' | 'en'): NavItem[] {
   if (role === 'supervisor') return [
     { to: '/dashboard',     icon: '📊', label: 'Dashboard' },
     { to: '/review',        icon: '🔍', label: s.review },
+    { to: '/schedule',      icon: '📅', label: lang === 'bm' ? 'Jadual' : 'Schedule' },
     { to: '/maintenance',   icon: '🔧', label: s.maintenance },
     { to: '/loans',         icon: '📦', label: s.loan_item },
     { to: '/tasks-admin',   icon: '📋', label: s.task_mgmt },
@@ -27,6 +28,7 @@ function navItems(role: string, lang: 'bm' | 'en'): NavItem[] {
   return [
     { to: '/dashboard',     icon: '📊', label: 'Dashboard' },
     { to: '/review',        icon: '🔍', label: s.review },
+    { to: '/schedule',      icon: '📅', label: lang === 'bm' ? 'Jadual' : 'Schedule' },
     { to: '/maintenance',   icon: '🔧', label: s.maintenance },
     { to: '/loans',         icon: '📦', label: s.loan_item },
     { to: '/tasks-admin',   icon: '📋', label: s.task_mgmt },

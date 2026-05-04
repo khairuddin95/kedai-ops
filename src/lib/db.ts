@@ -642,3 +642,38 @@ export async function deleteLoanRequest(id: string): Promise<boolean> {
   if (error) { console.error('[db] deleteLoanRequest:', error); return false }
   return true
 }
+
+// ─── Schedules ───────────────────────────────────────────────
+
+export interface ScheduleEntry {
+  userId: string
+  dayOfWeek: number   // 0=Sun, 1=Mon … 6=Sat
+  shiftId: import('../types').ShiftId | null
+}
+
+export async function fetchSchedules(): Promise<ScheduleEntry[]> {
+  if (!supabase) return []
+  const { data, error } = await supabase.from('schedules').select('user_id, day_of_week, shift_id')
+  if (error) { console.error('[db] fetchSchedules:', error); return [] }
+  return (data ?? []).map(r => ({ userId: r.user_id, dayOfWeek: r.day_of_week, shiftId: r.shift_id as import('../types').ShiftId | null }))
+}
+
+export async function upsertSchedule(entry: ScheduleEntry): Promise<boolean> {
+  if (!supabase) return false
+  if (!entry.shiftId) {
+    const { error } = await supabase.from('schedules').delete().eq('user_id', entry.userId).eq('day_of_week', entry.dayOfWeek)
+    if (error) { console.error('[db] upsertSchedule delete:', error); return false }
+    return true
+  }
+  const { error } = await supabase.from('schedules')
+    .upsert({ user_id: entry.userId, day_of_week: entry.dayOfWeek, shift_id: entry.shiftId }, { onConflict: 'user_id,day_of_week' })
+  if (error) { console.error('[db] upsertSchedule:', error); return false }
+  return true
+}
+
+export async function getUserTodayShift(userId: string): Promise<import('../types').ShiftId | null> {
+  if (!supabase) return null
+  const day = new Date().getDay()
+  const { data } = await supabase.from('schedules').select('shift_id').eq('user_id', userId).eq('day_of_week', day).maybeSingle()
+  return (data?.shift_id as import('../types').ShiftId) ?? null
+}
