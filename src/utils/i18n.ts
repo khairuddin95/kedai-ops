@@ -291,6 +291,13 @@ export const STRINGS: Record<Lang, Record<string, string>> = {
     gr_today_log: 'Log Hari Ini',
     gr_no_log: 'Belum ada review dicatat hari ini.',
     gr_total_week: 'Review Minggu Ini',
+    gr_take_photo: 'Ambil Gambar',
+    gr_retake: 'Ambil Semula',
+    gr_send_review: '📤 Kongsi & Buka Google Review',
+    gr_save_photo: '💾 Simpan Gambar ke Galeri',
+    gr_photo_tip: 'Gambar akan dikongsi — attach dalam review Google Maps',
+    gr_no_photo: 'Tiada gambar diambil.',
+    gr_share_fallback: 'Gambar disimpan. Buka Google Review dan attach gambar tersebut.',
   },
   en: {
     appName: 'KedaiOps',
@@ -582,6 +589,13 @@ export const STRINGS: Record<Lang, Record<string, string>> = {
     gr_today_log: "Today's Log",
     gr_no_log: 'No reviews logged today yet.',
     gr_total_week: 'Reviews This Week',
+    gr_take_photo: 'Take Photo',
+    gr_retake: 'Retake',
+    gr_send_review: '📤 Share & Open Google Review',
+    gr_save_photo: '💾 Save Photo to Gallery',
+    gr_photo_tip: 'Photo will be shared — attach it in Google Maps review',
+    gr_no_photo: 'No photo taken.',
+    gr_share_fallback: 'Photo saved. Open Google Review and attach the photo.',
   },
 }
 
