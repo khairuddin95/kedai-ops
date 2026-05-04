@@ -106,7 +106,7 @@ export default function BranchPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {[
           { label: s.total_branches,  value: branches.length, icon: '🏪', color: 'text-brand-600' },
           { label: s.active_branches, value: active,          icon: '🟢', color: 'text-emerald-600' },

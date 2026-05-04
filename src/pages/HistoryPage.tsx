@@ -32,7 +32,7 @@ export default function HistoryPage() {
       <h2 className="text-xl font-bold text-[var(--text)]">{s.history}</h2>
 
       {/* Filter tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
         {filters.map(f => (
           <button
             key={f.key}
@@ -93,7 +93,7 @@ export default function HistoryPage() {
                 {sub.photos.length > 0 && (
                   <div>
                     <p className="text-xs font-semibold text-[var(--text-muted)] mb-2">📷 Foto</p>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       {sub.photos.map((_c, i) => (
                         <div key={i} className="w-16 h-16 rounded-md flex items-center justify-center text-2xl" style={{ background: PHOTO_COLORS[i % PHOTO_COLORS.length] }}>📷</div>
                       ))}

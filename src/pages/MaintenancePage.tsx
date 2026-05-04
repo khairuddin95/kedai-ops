@@ -252,7 +252,7 @@ export default function MaintenancePage() {
               <label className="block text-xs font-medium text-[var(--text-soft)] mb-1">
                 {s.maint_photos} <span className="text-[var(--text-muted)]">({formPhotos.length}/5)</span>
               </label>
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
                 {formPhotos.map((p, i) => (
                   <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-[var(--surface-2)]">
                     <img src={p.preview} alt="" className="w-full h-full object-cover" />

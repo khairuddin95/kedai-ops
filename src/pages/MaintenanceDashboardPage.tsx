@@ -247,7 +247,7 @@ export default function MaintenanceDashboardPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={stats.categoryData} layout="vertical" margin={{ top: 0, right: 8, bottom: 0, left: 4 }}>
                   <XAxis type="number" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 11, fill: 'var(--ink-500)' }} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="name" width={72} tick={{ fontSize: 11, fill: 'var(--ink-500)' }} axisLine={false} tickLine={false} />
                   <Tooltip
                     contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
                     cursor={{ fill: 'rgba(59,130,246,0.07)' }}

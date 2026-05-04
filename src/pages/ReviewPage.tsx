@@ -39,7 +39,7 @@ export default function ReviewPage() {
     <div className="h-full">
       <h2 className="text-xl font-bold text-[var(--text)] mb-4">{s.review_title}</h2>
 
-      <div className="flex flex-col md:flex-row gap-4 h-[calc(100vh-180px)]">
+      <div className="flex flex-col md:flex-row gap-4 md:h-[calc(100vh-180px)]">
         {/* ── Left panel ── */}
         <div className="md:w-[380px] md:min-w-[380px] flex flex-col bg-[var(--surface)] border border-[var(--border)] rounded-lg overflow-hidden">
           {/* Header + tabs */}
