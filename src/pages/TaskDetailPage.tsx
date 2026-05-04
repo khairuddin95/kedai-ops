@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
 import { STRINGS } from '../utils/i18n'
@@ -9,9 +9,9 @@ import StarRating from '../components/ui/StarRating'
 import ChecklistItem from '../components/task/ChecklistItem'
 import GroupIcon from '../components/ui/GroupIcon'
 import Badge from '../components/ui/Badge'
+import * as db from '../lib/db'
+import { supabaseConfigured } from '../lib/supabase'
 import type { Submission } from '../types'
-
-const PHOTO_COLORS = ['#fbbf24','#34d399','#60a5fa','#f472b6','#a78bfa','#fb923c']
 
 export default function TaskDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -33,16 +33,20 @@ export default function TaskDetailPage() {
   )
 
   const existing = state.taskStates[task.id]
-  const [checked, setChecked] = useState<number[]>(existing?.checkedItems ?? [])
-  const [photos, setPhotos]   = useState<string[]>(existing?.photos ?? [])
-  const [notes, setNotes]     = useState(existing?.notes ?? '')
-  const [rating, setRating]   = useState(existing?.rating ?? 0)
-  const [submitting, setSub]  = useState(false)
+  const [checked, setChecked]   = useState<number[]>(existing?.checkedItems ?? [])
+  const [photos, setPhotos]     = useState<string[]>(existing?.photos ?? [])
+  const [localPhotos, setLocal] = useState<{ file: File; preview: string }[]>([])
+  const [notes, setNotes]       = useState(existing?.notes ?? '')
+  const [rating, setRating]     = useState(existing?.rating ?? 0)
+  const [submitting, setSub]    = useState(false)
+  const [lightbox, setLightbox] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const totalItems = task.items.length
   const checkCount = checked.length
   const checkPct = totalItems ? Math.round((checkCount / totalItems) * 100) : 0
-  const photosOk = !task.requiresPhoto || photos.length > 0
+  const totalPhotoCount = photos.length + localPhotos.length
+  const photosOk = !task.requiresPhoto || totalPhotoCount > 0
   const canSubmit = checkCount === totalItems && photosOk && rating > 0
 
   useEffect(() => {
@@ -56,13 +60,35 @@ export default function TaskDetailPage() {
   const toggleItem = (i: number) =>
     setChecked(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i])
 
-  const addPhoto = () =>
-    setPhotos(prev => [...prev, PHOTO_COLORS[prev.length % PHOTO_COLORS.length]])
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    const remaining = 6 - totalPhotoCount
+    files.slice(0, remaining).forEach(file => {
+      const preview = URL.createObjectURL(file)
+      setLocal(prev => [...prev, { file, preview }])
+    })
+    e.target.value = ''
+  }
+
+  const removeLocalPhoto = (i: number) => {
+    URL.revokeObjectURL(localPhotos[i].preview)
+    setLocal(prev => prev.filter((_, j) => j !== i))
+  }
 
   const handleSubmit = async () => {
     setSub(true)
+    const subId = `sub_${Date.now()}`
+
+    let uploadedUrls: string[] = [...photos]
+    if (supabaseConfigured && localPhotos.length > 0) {
+      const results = await Promise.all(localPhotos.map(p => db.uploadTaskPhoto(p.file, subId)))
+      uploadedUrls = [...uploadedUrls, ...results.filter(Boolean) as string[]]
+    } else {
+      uploadedUrls = [...uploadedUrls, ...localPhotos.map(p => p.preview)]
+    }
+
     const sub: Submission = {
-      id: `sub_${Date.now()}`,
+      id: subId,
       taskId: task.id,
       taskTitle: task.title,
       staffName: state.user?.name ?? '',
@@ -71,7 +97,7 @@ export default function TaskDetailPage() {
       shift: state.shift?.id ?? 'morning',
       submittedAt: new Date(),
       checkedItems: checked,
-      photos,
+      photos: uploadedUrls,
       notes,
       rating,
       status: 'pending',
@@ -79,7 +105,7 @@ export default function TaskDetailPage() {
       groupColor: task.groupColor,
     }
     await submitTask(sub)
-    await saveTaskState({ taskId: task.id, checkedItems: checked, photos, notes, rating, status: 'done' })
+    await saveTaskState({ taskId: task.id, checkedItems: checked, photos: uploadedUrls, notes, rating, status: 'done' })
     navigate(`/tasks/${task.id}/submitted`)
   }
 
@@ -136,21 +162,40 @@ export default function TaskDetailPage() {
         <Card>
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-bold text-sm text-[var(--text)]">{s.upload_photo}</h3>
-            <span className="text-xs text-[var(--text-muted)]">{photos.length} foto</span>
+            <span className="text-xs text-[var(--text-muted)]">{totalPhotoCount}/6 foto</span>
           </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handleFileChange}
+          />
           <div className="grid grid-cols-3 gap-2">
-            {photos.map((color, i) => (
-              <div key={i} className="aspect-square rounded-md flex items-center justify-center text-white text-2xl relative overflow-hidden" style={{ background: color }}>
-                📷
+            {/* Uploaded (existing) photos */}
+            {photos.map((url, i) => (
+              <div key={`up-${i}`} className="relative aspect-square rounded-md overflow-hidden bg-[var(--surface-2)]">
+                <img src={url} alt="" className="w-full h-full object-cover cursor-pointer" onClick={() => setLightbox(url)} />
                 <button
-                  onClick={() => setPhotos(p => p.filter((_,j) => j !== i))}
-                  className="absolute top-1 right-1 w-5 h-5 bg-black/40 rounded-full text-white text-xs flex items-center justify-center hover:bg-black/60"
+                  onClick={() => setPhotos(p => p.filter((_, j) => j !== i))}
+                  className="absolute top-1 right-1 w-5 h-5 bg-black/50 rounded-full text-white text-xs flex items-center justify-center hover:bg-black/80"
                 >×</button>
               </div>
             ))}
-            {photos.length < 6 && (
+            {/* Local preview photos */}
+            {localPhotos.map((p, i) => (
+              <div key={`loc-${i}`} className="relative aspect-square rounded-md overflow-hidden bg-[var(--surface-2)]">
+                <img src={p.preview} alt="" className="w-full h-full object-cover cursor-pointer" onClick={() => setLightbox(p.preview)} />
+                <button
+                  onClick={() => removeLocalPhoto(i)}
+                  className="absolute top-1 right-1 w-5 h-5 bg-black/50 rounded-full text-white text-xs flex items-center justify-center hover:bg-black/80"
+                >×</button>
+              </div>
+            ))}
+            {totalPhotoCount < 6 && (
               <button
-                onClick={addPhoto}
+                onClick={() => fileInputRef.current?.click()}
                 className="aspect-square rounded-md border-2 border-dashed border-[var(--border-2)] flex flex-col items-center justify-center gap-1 hover:border-brand-400 hover:bg-brand-50 dark:hover:bg-brand-900/10 transition-colors"
               >
                 <span className="text-2xl text-[var(--text-muted)]">+</span>
@@ -160,6 +205,17 @@ export default function TaskDetailPage() {
           </div>
           <p className="text-xs text-[var(--text-muted)] mt-2">💡 {s.photo_tip}</p>
         </Card>
+      )}
+
+      {/* Lightbox */}
+      {lightbox && (
+        <div
+          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
+          onClick={() => setLightbox(null)}
+        >
+          <img src={lightbox} alt="" className="max-w-full max-h-full rounded-lg object-contain" />
+          <button className="absolute top-4 right-4 text-white text-2xl w-10 h-10 flex items-center justify-center bg-black/40 rounded-full hover:bg-black/70">×</button>
+        </div>
       )}
 
       {/* Notes */}

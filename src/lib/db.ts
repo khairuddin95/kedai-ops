@@ -476,6 +476,16 @@ export async function uploadMaintenancePhoto(file: File, reportId: string): Prom
   return data.publicUrl
 }
 
+export async function uploadTaskPhoto(file: File, submissionId: string): Promise<string | null> {
+  if (!supabase) return null
+  const ext = file.name.split('.').pop() ?? 'jpg'
+  const path = `tasks/${submissionId}/${Date.now()}.${ext}`
+  const { error } = await supabase.storage.from('maintenance-photos').upload(path, file, { upsert: false })
+  if (error) { console.error('[db] uploadTaskPhoto:', error); return null }
+  const { data } = supabase.storage.from('maintenance-photos').getPublicUrl(path)
+  return data.publicUrl
+}
+
 export async function fetchMaintenanceReports(): Promise<MaintenanceReport[] | null> {
   if (!supabase) return null
   const { data, error } = await supabase
