@@ -158,10 +158,10 @@ export default function MaintenanceDashboardPage() {
           { label: s.maint_dash_inprog,           value: stats.inProgressCount,      icon: '🔄', color: '#f59e0b', bg: 'bg-amber-50 dark:bg-amber-900/20' },
           { label: s.maint_dash_resolved_month,   value: stats.resolvedMonthCount,   icon: '✅', color: '#10b981', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
         ].map(k => (
-          <div key={k.label} className={`${k.bg} rounded-xl p-4 border border-[var(--border)]`}>
-            <div className="text-2xl mb-1">{k.icon}</div>
-            <div className="font-mono text-3xl font-extrabold" style={{ color: k.color }}>{k.value}</div>
-            <div className="text-xs text-[var(--text-soft)] mt-0.5 leading-tight">{k.label}</div>
+          <div key={k.label} className={`${k.bg} rounded-xl p-3 sm:p-4 border border-[var(--border)]`}>
+            <div className="text-xl sm:text-2xl mb-1">{k.icon}</div>
+            <div className="font-mono text-2xl sm:text-3xl font-extrabold" style={{ color: k.color }}>{k.value}</div>
+            <div className="text-[10px] sm:text-xs text-[var(--text-soft)] mt-0.5 leading-tight">{k.label}</div>
           </div>
         ))}
       </div>
@@ -178,11 +178,11 @@ export default function MaintenanceDashboardPage() {
         {/* 14-day trend */}
         <Card className="md:col-span-2">
           <h3 className="font-bold text-sm text-[var(--text)] mb-3">{s.maint_dash_trend}</h3>
-          <div className="h-44">
+          <div className="h-36 sm:h-44">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats.trend} barSize={14} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
-                <XAxis dataKey="day" tick={{ fontSize: 10, fill: 'var(--ink-500)' }} axisLine={false} tickLine={false} interval={1} />
-                <YAxis tick={{ fontSize: 10, fill: 'var(--ink-400)' }} axisLine={false} tickLine={false} allowDecimals={false} />
+              <BarChart data={stats.trend} barSize={10} margin={{ top: 4, right: 4, bottom: 0, left: -24 }}>
+                <XAxis dataKey="day" tick={{ fontSize: 9, fill: 'var(--ink-500)' }} axisLine={false} tickLine={false} interval={2} />
+                <YAxis tick={{ fontSize: 9, fill: 'var(--ink-400)' }} axisLine={false} tickLine={false} allowDecimals={false} />
                 <Tooltip
                   contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
                   cursor={{ fill: 'rgba(59,130,246,0.07)' }}
@@ -201,13 +201,13 @@ export default function MaintenanceDashboardPage() {
         <Card>
           <h3 className="font-bold text-sm text-[var(--text)] mb-3">{s.maint_priority}</h3>
           {stats.priorityData.length === 0 ? (
-            <div className="h-44 flex items-center justify-center text-sm text-[var(--text-muted)]">{s.no_maintenance}</div>
+            <div className="h-36 flex items-center justify-center text-sm text-[var(--text-muted)]">{s.no_maintenance}</div>
           ) : (
-            <>
-              <div className="h-32">
+            <div className="flex items-center gap-3 md:flex-col md:items-stretch">
+              <div className="h-24 w-24 flex-shrink-0 md:h-28 md:w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={stats.priorityData} cx="50%" cy="50%" innerRadius={28} outerRadius={52}
+                    <Pie data={stats.priorityData} cx="50%" cy="50%" innerRadius={22} outerRadius={40}
                       dataKey="value" paddingAngle={2}>
                       {stats.priorityData.map((entry, i) => (
                         <Cell key={i} fill={entry.fill} />
@@ -219,18 +219,18 @@ export default function MaintenanceDashboardPage() {
                   </PieChart>
                 </ResponsiveContainer>
               </div>
-              <div className="flex flex-col gap-1 mt-1">
+              <div className="flex flex-col gap-1.5 flex-1 justify-center">
                 {stats.priorityData.map(p => (
                   <div key={p.name} className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-1.5">
-                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: p.fill }} />
+                      <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: p.fill }} />
                       <span className="text-[var(--text-soft)]">{p.name}</span>
                     </div>
                     <span className="font-semibold text-[var(--text)]">{p.value}</span>
                   </div>
                 ))}
               </div>
-            </>
+            </div>
           )}
         </Card>
       </div>
@@ -243,11 +243,11 @@ export default function MaintenanceDashboardPage() {
           {stats.categoryData.length === 0 ? (
             <div className="h-36 flex items-center justify-center text-sm text-[var(--text-muted)]">{s.no_maintenance}</div>
           ) : (
-            <div className="h-44">
+            <div className="h-40 sm:h-44">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats.categoryData} layout="vertical" margin={{ top: 0, right: 8, bottom: 0, left: 4 }}>
-                  <XAxis type="number" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <YAxis type="category" dataKey="name" width={72} tick={{ fontSize: 11, fill: 'var(--ink-500)' }} axisLine={false} tickLine={false} />
+                <BarChart data={stats.categoryData} layout="vertical" margin={{ top: 0, right: 8, bottom: 0, left: 0 }}>
+                  <XAxis type="number" tick={{ fontSize: 9 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <YAxis type="category" dataKey="name" width={64} tick={{ fontSize: 10, fill: 'var(--ink-500)' }} axisLine={false} tickLine={false} />
                   <Tooltip
                     contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
                     cursor={{ fill: 'rgba(59,130,246,0.07)' }}
@@ -260,18 +260,18 @@ export default function MaintenanceDashboardPage() {
           )}
         </Card>
 
-        {/* Status chart */}
+        {/* Status chart — replaced with horizontal summary cards on mobile */}
         <Card>
           <h3 className="font-bold text-sm text-[var(--text)] mb-3">{s.maint_dash_by_status}</h3>
           {stats.statusData.length === 0 ? (
             <div className="h-44 flex items-center justify-center text-sm text-[var(--text-muted)]">{s.no_maintenance}</div>
           ) : (
             <>
-              <div className="h-36">
+              <div className="h-28 sm:h-36">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={stats.statusData} barSize={40} margin={{ top: 4, right: 8, bottom: 4, left: -12 }}>
-                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--ink-500)' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 10, fill: 'var(--ink-400)' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <BarChart data={stats.statusData} barSize={32} margin={{ top: 4, right: 8, bottom: 4, left: -16 }}>
+                    <XAxis dataKey="name" tick={{ fontSize: 9, fill: 'var(--ink-500)' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 9, fill: 'var(--ink-400)' }} axisLine={false} tickLine={false} allowDecimals={false} />
                     <Tooltip
                       contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
                       cursor={{ fill: 'rgba(59,130,246,0.07)' }}
@@ -282,11 +282,11 @@ export default function MaintenanceDashboardPage() {
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-              <div className="flex justify-around mt-1">
+              <div className="flex justify-around mt-2">
                 {stats.statusData.map(d => (
                   <div key={d.name} className="text-center">
-                    <div className="font-mono font-bold text-lg" style={{ color: d.fill }}>{d.value}</div>
-                    <div className="text-xs text-[var(--text-muted)]">{d.name}</div>
+                    <div className="font-mono font-bold text-base sm:text-lg" style={{ color: d.fill }}>{d.value}</div>
+                    <div className="text-[10px] sm:text-xs text-[var(--text-muted)] leading-tight">{d.name}</div>
                   </div>
                 ))}
               </div>
