@@ -162,18 +162,16 @@ export default function AppShell() {
           </NavLink>
         ))}
 
-        {/* More button — only if there are extra items */}
-        {moreItems.length > 0 && (
-          <button
-            onClick={() => setDrawerOpen(true)}
-            className={`flex-1 flex flex-col items-center py-2.5 gap-0.5 text-xs font-medium transition-colors ${
-              drawerOpen ? 'text-brand-600' : 'text-[var(--text-muted)]'
-            }`}
-          >
-            <span className="text-lg">☰</span>
-            <span>Lagi</span>
-          </button>
-        )}
+        {/* More button — always visible for settings access */}
+        <button
+          onClick={() => setDrawerOpen(true)}
+          className={`flex-1 flex flex-col items-center py-2.5 gap-0.5 text-xs font-medium transition-colors ${
+            drawerOpen ? 'text-brand-600' : 'text-[var(--text-muted)]'
+          }`}
+        >
+          <span className="text-lg">☰</span>
+          <span>Lagi</span>
+        </button>
       </nav>
 
       {/* ── More Drawer (mobile) ── */}
@@ -202,29 +200,31 @@ export default function AppShell() {
             </div>
 
             {/* More nav items */}
-            <div className="px-3 py-2 grid grid-cols-2 gap-1">
-              {moreItems.map(item => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.to === '/'}
-                  onClick={() => setDrawerOpen(false)}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-colors ${
-                      isActive
-                        ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400'
-                        : 'text-[var(--text-soft)] hover:bg-[var(--surface-2)]'
-                    }`
-                  }
-                >
-                  <span className="text-xl flex-shrink-0">{item.icon}</span>
-                  <span className="truncate">{item.label}</span>
-                </NavLink>
-              ))}
-            </div>
+            {moreItems.length > 0 && (
+              <div className="px-3 py-2 grid grid-cols-2 gap-1">
+                {moreItems.map(item => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.to === '/'}
+                    onClick={() => setDrawerOpen(false)}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-colors ${
+                        isActive
+                          ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400'
+                          : 'text-[var(--text-soft)] hover:bg-[var(--surface-2)]'
+                      }`
+                    }
+                  >
+                    <span className="text-xl flex-shrink-0">{item.icon}</span>
+                    <span className="truncate">{item.label}</span>
+                  </NavLink>
+                ))}
+              </div>
+            )}
 
             {/* Settings row */}
-            <div className="px-3 pb-3 pt-1 flex gap-2 border-t border-[var(--border)] mt-1">
+            <div className={`px-3 pb-3 flex gap-2 ${moreItems.length > 0 ? 'pt-1 border-t border-[var(--border)] mt-1' : 'pt-3'}`}>
               <button
                 onClick={() => { dispatch({ type: 'TOGGLE_DARK' }); setDrawerOpen(false) }}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-[var(--text-soft)] bg-[var(--surface-2)] hover:bg-[var(--surface-3,#e5e7eb)] transition-colors"
