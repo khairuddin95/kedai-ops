@@ -297,7 +297,7 @@ export default function MaintenanceDashboardPage() {
 
       {/* Branch summary + Urgent issues */}
       <div className="grid md:grid-cols-2 gap-4">
-        {/* Branch table */}
+        {/* Branch summary */}
         <Card padding="none">
           <div className="px-4 py-3 border-b border-[var(--border)]">
             <h3 className="font-bold text-sm text-[var(--text)]">{s.maint_dash_by_branch}</h3>
@@ -305,38 +305,29 @@ export default function MaintenanceDashboardPage() {
           {stats.branches.length === 0 ? (
             <div className="p-8 text-center text-sm text-[var(--text-muted)]">{s.no_maintenance}</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-[var(--border)]">
-                    {[s.branch, s.status_open, s.status_in_progress, s.status_resolved, '🚨'].map(h => (
-                      <th key={h} className="text-left px-3 py-2 text-xs text-[var(--text-muted)] font-semibold whitespace-nowrap">{h}</th>
+            <div className="divide-y divide-[var(--border)]">
+              {stats.branches.map(b => (
+                <div key={b.name} className="px-4 py-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-semibold text-[var(--text)] truncate">{b.name}</span>
+                    {b.critical > 0 && (
+                      <span className="text-xs font-bold text-red-500 bg-red-50 dark:bg-red-900/20 px-2 py-0.5 rounded-full flex-shrink-0 ml-2">🚨 {b.critical}</span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { label: s.status_open,        value: b.open,       color: b.open > 0 ? 'text-blue-500' : 'text-[var(--text-muted)]' },
+                      { label: s.status_in_progress, value: b.inProgress, color: b.inProgress > 0 ? 'text-amber-500' : 'text-[var(--text-muted)]' },
+                      { label: s.status_resolved,    value: b.resolved,   color: 'text-emerald-500' },
+                    ].map(stat => (
+                      <div key={stat.label} className="bg-[var(--surface-2)] rounded-lg px-2 py-1.5 text-center">
+                        <div className={`font-bold text-base ${stat.color}`}>{stat.value}</div>
+                        <div className="text-[9px] text-[var(--text-muted)] leading-tight truncate">{stat.label}</div>
+                      </div>
                     ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {stats.branches.map(b => (
-                    <tr key={b.name} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-2)] transition-colors">
-                      <td className="px-3 py-2.5 font-medium text-[var(--text)] whitespace-nowrap">{b.name}</td>
-                      <td className="px-3 py-2.5 text-center">
-                        <span className={`font-semibold ${b.open > 0 ? 'text-blue-500' : 'text-[var(--text-muted)]'}`}>{b.open}</span>
-                      </td>
-                      <td className="px-3 py-2.5 text-center">
-                        <span className={`font-semibold ${b.inProgress > 0 ? 'text-amber-500' : 'text-[var(--text-muted)]'}`}>{b.inProgress}</span>
-                      </td>
-                      <td className="px-3 py-2.5 text-center">
-                        <span className="font-semibold text-emerald-500">{b.resolved}</span>
-                      </td>
-                      <td className="px-3 py-2.5 text-center">
-                        {b.critical > 0
-                          ? <span className="font-bold text-red-500">{b.critical}</span>
-                          : <span className="text-emerald-500">✓</span>
-                        }
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </Card>
