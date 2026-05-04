@@ -92,9 +92,24 @@ function reducer(state: AppState, action: Action): AppState {
   }
 }
 
+function readSession(): { user: User | null; shift: Shift | null } {
+  try {
+    const u = localStorage.getItem('session_user')
+    const sh = localStorage.getItem('session_shift')
+    return {
+      user:  u  ? (JSON.parse(u)  as User)  : null,
+      shift: sh ? (JSON.parse(sh) as Shift) : null,
+    }
+  } catch {
+    return { user: null, shift: null }
+  }
+}
+
+const { user: savedUser, shift: savedShift } = readSession()
+
 const init: AppState = {
-  user:        null,
-  shift:       null,
+  user:        savedUser,
+  shift:       savedShift,
   taskStates:  {},
   submissions: MOCK_SUBS,
   taskGroups:  MOCK_GROUPS,
@@ -141,6 +156,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('dark', String(state.dark))
     document.documentElement.setAttribute('data-theme', state.dark ? 'dark' : 'light')
   }, [state.lang, state.dark])
+
+  // Persist session — save user+shift on login, clear on logout
+  useEffect(() => {
+    if (state.user) {
+      localStorage.setItem('session_user',  JSON.stringify(state.user))
+      localStorage.setItem('session_shift', JSON.stringify(state.shift))
+    } else {
+      localStorage.removeItem('session_user')
+      localStorage.removeItem('session_shift')
+    }
+  }, [state.user, state.shift])
 
   // On login — load per-user task states from DB
   useEffect(() => {
