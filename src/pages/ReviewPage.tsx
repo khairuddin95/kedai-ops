@@ -1,0 +1,199 @@
+import { useState } from 'react'
+import { useApp } from '../context/AppContext'
+import { STRINGS } from '../utils/i18n'
+import Button from '../components/ui/Button'
+import Avatar from '../components/ui/Avatar'
+import StarRating from '../components/ui/StarRating'
+import { SubStatusBadge } from '../components/ui/Badge'
+import type { Submission, SubmissionStatus } from '../types'
+
+type Tab = 'pending' | 'approved' | 'rejected'
+const PHOTO_COLORS = ['#fbbf24','#34d399','#60a5fa','#f472b6']
+
+export default function ReviewPage() {
+  const { state, reviewSubmission } = useApp()
+  const lang = state.lang
+  const s = STRINGS[lang]
+  const [tab, setTab] = useState<Tab>('pending')
+  const [selected, setSelected] = useState<Submission | null>(null)
+  const [comment, setComment] = useState('')
+
+  const subs = state.submissions.filter(s => s.status === tab)
+  const pending = state.submissions.filter(s => s.status === 'pending').length
+
+  const tabs: { key: Tab; label: string }[] = [
+    { key: 'pending',  label: `${s.pending} (${pending})` },
+    { key: 'approved', label: s.approved },
+    { key: 'rejected', label: s.rejected },
+  ]
+
+  const decide = async (status: SubmissionStatus) => {
+    if (!selected) return
+    await reviewSubmission(selected.id, status as 'approved' | 'rejected', comment || undefined)
+    setComment('')
+    const next = subs.find(s => s.id !== selected.id)
+    setSelected(next ?? null)
+  }
+
+  return (
+    <div className="h-full">
+      <h2 className="text-xl font-bold text-[var(--text)] mb-4">{s.review_title}</h2>
+
+      <div className="flex flex-col md:flex-row gap-4 h-[calc(100vh-180px)]">
+        {/* ── Left panel ── */}
+        <div className="md:w-[380px] md:min-w-[380px] flex flex-col bg-[var(--surface)] border border-[var(--border)] rounded-lg overflow-hidden">
+          {/* Header + tabs */}
+          <div className="p-4 border-b border-[var(--border)]">
+            <div className="flex items-center justify-between mb-3">
+              <span className="font-semibold text-[var(--text)]">{s.review_title}</span>
+              {pending > 0 && (
+                <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{pending}</span>
+              )}
+            </div>
+            <div className="flex gap-1">
+              {tabs.map(t => (
+                <button
+                  key={t.key}
+                  onClick={() => { setTab(t.key); setSelected(null) }}
+                  className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                    tab === t.key ? 'bg-brand-600 text-white' : 'text-[var(--text-soft)] hover:bg-[var(--surface-2)]'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* List */}
+          <div className="flex-1 overflow-y-auto divide-y divide-[var(--border)]">
+            {subs.length === 0 && (
+              <div className="py-12 text-center text-[var(--text-muted)] text-sm">
+                <div className="text-4xl mb-2">📭</div>
+                {s.no_submissions}
+              </div>
+            )}
+            {subs.map(sub => (
+              <button
+                key={sub.id}
+                onClick={() => { setSelected(sub); setComment('') }}
+                className={`w-full flex items-start gap-3 p-4 text-left transition-colors ${
+                  selected?.id === sub.id ? 'bg-brand-50 dark:bg-brand-900/20' : 'hover:bg-[var(--surface-2)]'
+                }`}
+              >
+                <Avatar emoji={sub.staffAvatar} size="sm" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-1">
+                    <span className="text-sm font-semibold text-[var(--text)] truncate">{sub.staffName}</span>
+                    {sub.flag && <span className="text-red-500 text-xs flex-shrink-0">🚩</span>}
+                  </div>
+                  <p className="text-xs text-[var(--text-muted)] truncate">{sub.taskTitle}</p>
+                  <div className="flex items-center justify-between mt-1">
+                    <StarRating value={sub.rating} readonly size="sm" />
+                    <span className="text-xs text-[var(--text-muted)]">
+                      {sub.submittedAt.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Right panel ── */}
+        <div className="flex-1 flex flex-col bg-[var(--surface)] border border-[var(--border)] rounded-lg overflow-hidden">
+          {!selected ? (
+            <div className="flex-1 flex items-center justify-center text-[var(--text-muted)]">
+              <div className="text-center">
+                <div className="text-5xl mb-3">👈</div>
+                <p className="text-sm">{s.select_submission}</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Staff + task info */}
+              <div className="p-5 border-b border-[var(--border)]">
+                <div className="flex items-center gap-3 mb-3">
+                  <Avatar emoji={selected.staffAvatar} size="lg" name={selected.staffName} />
+                  <div>
+                    <div className="font-bold text-[var(--text)]">{selected.staffName}</div>
+                    <div className="text-xs text-[var(--text-muted)]">{selected.branch} · Shift {selected.shift === 'morning' ? s.shift_morning : s.shift_evening}</div>
+                  </div>
+                  <div className="ml-auto">
+                    <SubStatusBadge status={selected.status} />
+                  </div>
+                </div>
+                <div className="bg-[var(--surface-2)] rounded-lg p-3">
+                  <div className="text-sm font-semibold text-[var(--text)]">{selected.taskTitle}</div>
+                  <div className="text-xs text-[var(--text-muted)] mt-0.5">{selected.groupTitle}</div>
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                {/* Photos */}
+                {selected.photos.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-[var(--text-muted)] mb-2">📷 Foto ({selected.photos.length})</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {selected.photos.map((_c, i) => (
+                        <div key={i} className="aspect-square rounded-md flex items-center justify-center text-3xl" style={{ background: PHOTO_COLORS[i % PHOTO_COLORS.length] }}>📷</div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Notes */}
+                {selected.notes && (
+                  <div>
+                    <p className="text-xs font-semibold text-[var(--text-muted)] mb-1">📝 {s.notes_title}</p>
+                    <p className="text-sm bg-[var(--surface-2)] rounded-lg px-3 py-2 text-[var(--text)]">{selected.notes}</p>
+                  </div>
+                )}
+
+                {/* Rating */}
+                <div>
+                  <p className="text-xs font-semibold text-[var(--text-muted)] mb-2">⭐ {s.staff_rating}</p>
+                  <StarRating value={selected.rating} readonly size="md" />
+                </div>
+
+                {/* Comment */}
+                {selected.status === 'pending' && (
+                  <div>
+                    <p className="text-xs font-semibold text-[var(--text-muted)] mb-1">💬 {s.add_comment}</p>
+                    <textarea
+                      value={comment}
+                      onChange={e => setComment(e.target.value)}
+                      rows={3}
+                      placeholder={s.add_comment}
+                      className="w-full bg-[var(--surface-2)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none focus:border-brand-400 transition-colors resize-none"
+                    />
+                  </div>
+                )}
+
+                {selected.supervisorComment && (
+                  <div>
+                    <p className="text-xs font-semibold text-[var(--text-muted)] mb-1">💬 {s.add_comment}</p>
+                    <p className="text-sm bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-2 text-[var(--text)]">{selected.supervisorComment}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Action buttons */}
+              {selected.status === 'pending' && (
+                <div className="p-4 border-t border-[var(--border)] flex gap-3">
+                  <Button variant="danger" className="flex-1" onClick={() => decide('rejected')}>
+                    ✗ {s.reject}
+                  </Button>
+                  <Button variant="success" className="flex-1" onClick={() => decide('approved')}>
+                    ✓ {s.approve}
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
