@@ -24,6 +24,7 @@ interface AppState {
 type Action =
   | { type: 'LOGIN';           user: User; shift: Shift }
   | { type: 'LOGOUT' }
+  | { type: 'RESET_DAILY' }
   | { type: 'SET_TASK_STATES'; states: Record<string, TaskState> }
   | { type: 'SET_TASK_STATE';  taskId: string; state: Partial<TaskState> }
   | { type: 'SET_SUBMISSIONS'; subs: Submission[] }
@@ -45,6 +46,8 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, user: action.user, shift: action.shift }
     case 'LOGOUT':
       return { ...state, user: null, shift: null, taskStates: {}, dbReady: false }
+    case 'RESET_DAILY':
+      return { ...state, taskStates: {} }
     case 'SET_TASK_STATES':
       return { ...state, taskStates: action.states }
     case 'SET_TASK_STATE': {
@@ -167,6 +170,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem('session_shift')
     }
   }, [state.user, state.shift])
+
+  // Daily reset — clear task states when a new day begins
+  useEffect(() => {
+    const today = new Date().toDateString()
+    const lastReset = localStorage.getItem('last_daily_reset')
+    if (lastReset !== today) {
+      dispatch({ type: 'RESET_DAILY' })
+      localStorage.setItem('last_daily_reset', today)
+      if (supabaseConfigured && state.user) {
+        db.clearUserTaskStates(state.user.id).catch(() => {})
+      }
+    }
+  // Run once on mount and whenever user changes (login/logout)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.user?.id])
 
   // On login — load per-user task states from DB
   useEffect(() => {

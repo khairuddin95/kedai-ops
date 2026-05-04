@@ -332,6 +332,13 @@ export async function upsertTaskState(userId: string, state: TaskState): Promise
   return true
 }
 
+export async function clearUserTaskStates(userId: string): Promise<boolean> {
+  if (!supabase) return false
+  const { error } = await supabase.from('task_states').delete().eq('user_id', userId)
+  if (error) { console.error('[db] clearUserTaskStates:', error); return false }
+  return true
+}
+
 // ─── Assets ──────────────────────────────────────────────────
 
 function assetFromDb(r: {
