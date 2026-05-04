@@ -291,6 +291,19 @@ export async function updateSubmissionStatus(
   return true
 }
 
+export async function deleteSubmissionsOnDate(date: Date): Promise<boolean> {
+  if (!supabase) return false
+  const start = new Date(date); start.setHours(0, 0, 0, 0)
+  const end   = new Date(date); end.setHours(23, 59, 59, 999)
+  const { error } = await supabase
+    .from('submissions')
+    .delete()
+    .gte('submitted_at', start.toISOString())
+    .lte('submitted_at', end.toISOString())
+  if (error) { console.error('[db] deleteSubmissionsOnDate:', error); return false }
+  return true
+}
+
 // ─── Task States ─────────────────────────────────────────────
 
 export async function fetchTaskStates(userId: string): Promise<Record<string, TaskState> | null> {

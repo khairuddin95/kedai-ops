@@ -8,15 +8,14 @@ import TaskDetailPage from './pages/TaskDetailPage'
 import SubmittedPage  from './pages/SubmittedPage'
 import HistoryPage    from './pages/HistoryPage'
 import ReviewPage     from './pages/ReviewPage'
-import ReportsPage    from './pages/ReportsPage'
+import DashboardPage  from './pages/DashboardPage'
 import StaffPage      from './pages/StaffPage'
 import TasksAdminPage from './pages/TasksAdminPage'
 import AssetPage        from './pages/AssetPage'
 import BranchPage       from './pages/BranchPage'
-import MaintenancePage          from './pages/MaintenancePage'
-import MaintenanceDashboardPage from './pages/MaintenanceDashboardPage'
-import LoanPage                 from './pages/LoanPage'
-import GoogleReviewPage         from './pages/GoogleReviewPage'
+import MaintenancePage  from './pages/MaintenancePage'
+import LoanPage         from './pages/LoanPage'
+import GoogleReviewPage from './pages/GoogleReviewPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { state } = useApp()
@@ -29,7 +28,7 @@ function RequireRole({ children, roles }: { children: React.ReactNode; roles: Ro
   const { state } = useApp()
   if (!state.user) return <Navigate to="/login" replace />
   if (!roles.includes(state.user.role as Role)) {
-    const fallback = state.user.role === 'staff' ? '/' : state.user.role === 'supervisor' ? '/review' : '/reports'
+    const fallback = state.user.role === 'staff' ? '/' : '/dashboard'
     return <Navigate to={fallback} replace />
   }
   return <>{children}</>
@@ -48,16 +47,15 @@ function AppRoutes() {
         <Route path="tasks/:id/submitted" element={<SubmittedPage />} />
         <Route path="history" element={<HistoryPage />} />
         <Route path="review"      element={<RequireRole roles={['supervisor','owner']}><ReviewPage /></RequireRole>} />
-        <Route path="reports"     element={<RequireRole roles={['supervisor','owner']}><ReportsPage /></RequireRole>} />
+        <Route path="dashboard"   element={<RequireRole roles={['supervisor','owner']}><DashboardPage /></RequireRole>} />
         <Route path="staff"       element={<RequireRole roles={['owner']}><StaffPage /></RequireRole>} />
         <Route path="tasks-admin" element={<RequireRole roles={['supervisor','owner']}><TasksAdminPage /></RequireRole>} />
         <Route path="assets"       element={<RequireRole roles={['supervisor','owner']}><AssetPage /></RequireRole>} />
         <Route path="branches"     element={<RequireRole roles={['owner']}><BranchPage /></RequireRole>} />
-        <Route path="maintenance"      element={<RequireRole roles={['supervisor','owner']}><MaintenancePage /></RequireRole>} />
-        <Route path="maintenance-dash" element={<RequireRole roles={['supervisor','owner']}><MaintenanceDashboardPage /></RequireRole>} />
+        <Route path="maintenance"  element={<RequireRole roles={['supervisor','owner']}><MaintenancePage /></RequireRole>} />
         <Route path="loans"        element={<RequireRole roles={['supervisor','owner']}><LoanPage /></RequireRole>} />
         <Route path="google-review" element={<GoogleReviewPage />} />
-        <Route path="*" element={<Navigate to={state.user?.role === 'staff' ? '/' : state.user?.role === 'supervisor' ? '/review' : '/reports'} replace />} />
+        <Route path="*" element={<Navigate to={state.user?.role === 'staff' ? '/' : '/dashboard'} replace />} />
       </Route>
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>

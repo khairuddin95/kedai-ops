@@ -262,8 +262,14 @@ export default function GoogleReviewPage() {
       {/* Today's log */}
       {logs.length > 0 && (
         <Card padding="none">
-          <div className="px-4 py-3 border-b border-[var(--border)]">
+          <div className="px-4 py-3 border-b border-[var(--border)] flex items-center justify-between">
             <h3 className="font-bold text-sm text-[var(--text)]">{s.gr_today_log}</h3>
+            <button
+              onClick={() => { if (confirm(lang === 'bm' ? 'Padam semua log hari ini?' : 'Delete all logs today?')) setLogs([]) }}
+              className="text-xs text-red-500 hover:text-red-700 transition-colors"
+            >
+              {lang === 'bm' ? 'Padam Semua' : 'Delete All'}
+            </button>
           </div>
           <div className="divide-y divide-[var(--border)]">
             {logs.map((log, i) => (
@@ -278,9 +284,17 @@ export default function GoogleReviewPage() {
                     <div className="text-sm font-medium text-[var(--text)] truncate">{log.staffName}</div>
                   </div>
                 </div>
-                <span className="text-xs text-[var(--text-muted)] flex-shrink-0">
-                  {new Date(log.loggedAt).toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' })}
-                </span>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="text-xs text-[var(--text-muted)]">
+                    {new Date(log.loggedAt).toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                  <button
+                    onClick={() => setLogs(prev => prev.filter(l => l.id !== log.id))}
+                    className="text-[var(--text-muted)] hover:text-red-500 transition-colors text-sm p-1"
+                  >
+                    🗑
+                  </button>
+                </div>
               </div>
             ))}
           </div>
