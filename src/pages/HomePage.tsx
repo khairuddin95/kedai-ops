@@ -5,6 +5,7 @@ import Card from '../components/ui/Card'
 import ProgressBar from '../components/ui/ProgressBar'
 import { TaskStatusBadge } from '../components/ui/Badge'
 import GroupIcon from '../components/ui/GroupIcon'
+import { loadTodayReviews, getReviewTarget } from './GoogleReviewPage'
 import type { TaskStatus } from '../types'
 
 function getGreeting(name: string, lang: 'bm' | 'en') {
@@ -103,6 +104,45 @@ export default function HomePage() {
           </div>
         ))}
       </div>
+
+      {/* Google Review task card */}
+      {(() => {
+        const grLogs   = loadTodayReviews()
+        const grTarget = getReviewTarget()
+        const grCount  = grLogs.length
+        const grPct    = Math.min(100, Math.round((grCount / grTarget) * 100))
+        const grDone   = grCount >= grTarget
+        return (
+          <button
+            onClick={() => navigate('/google-review')}
+            className="w-full text-left"
+          >
+            <Card hover padding="none">
+              <div className="flex items-center gap-3 p-4 border-b border-[var(--border)]">
+                <div className="w-9 h-9 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-xl flex-shrink-0">⭐</div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-sm text-[var(--text)]">{s.google_review}</div>
+                  <div className="text-xs text-[var(--text-muted)]">
+                    {grDone
+                      ? (lang === 'bm' ? '✅ Sasaran tercapai!' : '✅ Target reached!')
+                      : (lang === 'bm' ? `${grCount}/${grTarget} review` : `${grCount}/${grTarget} reviews`)}
+                  </div>
+                </div>
+                <span className={`text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${
+                  grDone
+                    ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600'
+                    : 'bg-amber-100 dark:bg-amber-900/30 text-amber-600'
+                }`}>
+                  {grPct}%
+                </span>
+              </div>
+              <div className="px-4 py-2">
+                <ProgressBar value={grPct} color={grDone ? '#10b981' : '#f59e0b'} />
+              </div>
+            </Card>
+          </button>
+        )
+      })()}
 
       {/* Task groups */}
       <div>
