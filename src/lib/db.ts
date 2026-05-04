@@ -76,6 +76,12 @@ export async function checkUsername(username: string): Promise<UserPreview | nul
   return { id: r.id, name: r.name, avatar: r.avatar, role: r.role, branch: r.branch, username: r.username, pinSet: r.pin_set }
 }
 
+async function getUserDefaultShift(userId: string): Promise<import('../types').ShiftId | undefined> {
+  if (!supabase) return undefined
+  const { data } = await supabase.from('users').select('default_shift').eq('id', userId).single()
+  return (data?.default_shift as import('../types').ShiftId) || undefined
+}
+
 export async function setUserPin(username: string, pin: string): Promise<User | null> {
   if (!supabase) return null
   const { data, error } = await supabase.rpc('set_user_pin', {
@@ -84,7 +90,8 @@ export async function setUserPin(username: string, pin: string): Promise<User | 
   })
   if (error || !data?.length) { console.error('[db] setUserPin:', error); return null }
   const r = data[0]
-  return { id: r.id, name: r.name, role: r.role, branch: r.branch, avatar: r.avatar, username: r.username }
+  const defaultShift = await getUserDefaultShift(r.id)
+  return { id: r.id, name: r.name, role: r.role, branch: r.branch, avatar: r.avatar, username: r.username, defaultShift }
 }
 
 export async function verifyPin(username: string, pin: string): Promise<User | null> {
@@ -95,7 +102,8 @@ export async function verifyPin(username: string, pin: string): Promise<User | n
   })
   if (error || !data?.length) { console.error('[db] verifyPin:', error); return null }
   const r = data[0]
-  return { id: r.id, name: r.name, role: r.role, branch: r.branch, avatar: r.avatar, username: r.username }
+  const defaultShift = await getUserDefaultShift(r.id)
+  return { id: r.id, name: r.name, role: r.role, branch: r.branch, avatar: r.avatar, username: r.username, defaultShift }
 }
 
 export async function loginByCredentials(username: string, password: string): Promise<User | null> {
@@ -114,13 +122,14 @@ export async function fetchUsers(): Promise<User[] | null> {
   if (!supabase) return null
   const { data, error } = await supabase
     .from('users')
-    .select('id, name, role, branch, avatar, username, pin_set, telegram_id')
+    .select('id, name, role, branch, avatar, username, pin_set, telegram_id, default_shift')
     .order('name')
   if (error) { console.error('[db] fetchUsers:', error); return null }
   return (data ?? []).map(r => ({
     id: r.id, name: r.name, role: r.role,
     branch: r.branch, avatar: r.avatar, username: r.username ?? '',
     telegramId: r.telegram_id ?? undefined,
+    defaultShift: (r.default_shift as import('../types').ShiftId) || undefined,
   }))
 }
 
@@ -143,7 +152,7 @@ export async function registerUser(
 
 export async function updateUser(
   id: string,
-  updates: { name: string; role: string; branch: string; avatar: string }
+  updates: { name: string; role: string; branch: string; avatar: string; default_shift?: string | null }
 ): Promise<boolean> {
   if (!supabase) return false
   const { error } = await supabase.from('users').update(updates).eq('id', id)

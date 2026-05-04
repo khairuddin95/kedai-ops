@@ -7,7 +7,7 @@ import Badge from '../components/ui/Badge'
 import * as db from '../lib/db'
 import { supabaseConfigured } from '../lib/supabase'
 import { USERS as MOCK_USERS, BRANCHES as MOCK_BRANCHES } from '../data/mockData'
-import type { Branch, User } from '../types'
+import type { Branch, ShiftId, User } from '../types'
 
 const AVATARS = ['🧑‍🍳','👩‍🍳','👨‍🍳','🧑‍💼','👨‍💼','👩‍💼','🧑','👩','👦','👧','🙂','😊']
 
@@ -17,8 +17,14 @@ const ROLE_BADGE: Record<string, 'success' | 'info' | 'warning'> = {
   owner: 'success',
 }
 
+const SHIFT_OPTIONS: { id: ShiftId | ''; label: string }[] = [
+  { id: '',        label: '— Tiada (pilih sendiri)' },
+  { id: 'morning', label: '☀️ Shift Pagi' },
+  { id: 'evening', label: '🌙 Shift Petang' },
+]
+
 const blank = {
-  name: '', role: 'staff' as User['role'], branch: '', username: '', avatar: '🧑‍🍳',
+  name: '', role: 'staff' as User['role'], branch: '', username: '', avatar: '🧑‍🍳', defaultShift: '' as ShiftId | '',
 }
 
 export default function StaffPage() {
@@ -60,7 +66,7 @@ export default function StaffPage() {
   const openAdd = () => { resetForm(); setShowForm(true) }
 
   const openEdit = (u: User) => {
-    setForm({ name: u.name, role: u.role, branch: u.branch, username: u.username, avatar: u.avatar })
+    setForm({ name: u.name, role: u.role, branch: u.branch, username: u.username, avatar: u.avatar, defaultShift: u.defaultShift ?? '' })
     setEditId(u.id)
     setShowForm(true)
   }
@@ -88,9 +94,10 @@ export default function StaffPage() {
     setSaving(true)
 
     if (isEdit) {
-      const updates = { name: form.name.trim(), role: form.role, branch: form.branch, avatar: form.avatar }
+      const updates = { name: form.name.trim(), role: form.role, branch: form.branch, avatar: form.avatar, default_shift: form.defaultShift || null }
       if (supabaseConfigured) await db.updateUser(editId, updates)
-      setUsers(prev => prev.map(u => u.id === editId ? { ...u, ...updates } : u))
+      const { default_shift, ...rest } = updates
+      setUsers(prev => prev.map(u => u.id === editId ? { ...u, ...rest, defaultShift: (default_shift as ShiftId) || undefined } : u))
       setSuccess(s.staff_saved)
     } else {
       let newUser: User | null = null
@@ -228,6 +235,23 @@ export default function StaffPage() {
               </select>
             </div>
 
+            {/* Default shift */}
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-medium text-[var(--text-soft)] mb-1">
+                {lang === 'bm' ? 'Shift Tetap' : 'Default Shift'}
+              </label>
+              <select
+                value={form.defaultShift}
+                onChange={e => setForm(f => ({ ...f, defaultShift: e.target.value as ShiftId | '' }))}
+                className="w-full bg-[var(--surface-2)] border border-[var(--border)] rounded-md px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-brand-400 transition-colors"
+              >
+                {SHIFT_OPTIONS.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+              </select>
+              <p className="text-[10px] text-[var(--text-muted)] mt-1">
+                {lang === 'bm' ? 'Staff akan terus masuk tanpa perlu pilih shift semasa login' : 'Staff will skip shift selection on login'}
+              </p>
+            </div>
+
             {/* Username — editable when adding, read-only when editing */}
             <div className="sm:col-span-2">
               <label className="block text-xs font-medium text-[var(--text-soft)] mb-1">{s.username}</label>
@@ -296,9 +320,9 @@ export default function StaffPage() {
                 <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                   <span className="text-xs text-[var(--text-muted)]">📍 {u.branch}</span>
                   <span className="text-xs text-[var(--text-muted)] font-mono">@{u.username}</span>
-                  {u.telegramId
-                    ? <span className="text-xs text-sky-600 dark:text-sky-400">✈️ Telegram ✓</span>
-                    : <span className="text-xs text-[var(--text-muted)]">✈️ —</span>
+                  {u.defaultShift
+                    ? <span className="text-xs font-medium text-amber-600 dark:text-amber-400">{u.defaultShift === 'morning' ? '☀️ Pagi' : '🌙 Petang'}</span>
+                    : <span className="text-xs text-[var(--text-muted)]">🔄 Pilih shift</span>
                   }
                 </div>
               </div>

@@ -136,6 +136,7 @@ export default function LoginPage() {
     setLoading(false)
     if (!user) { setError('Gagal menyimpan PIN. Cuba lagi.'); setPin(''); setConfirmPin(''); setPinSubStep('enter'); return }
     setVerified(user)
+    if (user.defaultShift) { loginWithShift(user, user.defaultShift); return }
     setStep(3)
   }
 
@@ -163,14 +164,26 @@ export default function LoginPage() {
       return
     }
     setVerified(user)
+    if (user.defaultShift) {
+      const shift = SHIFTS.find(s => s.id === user.defaultShift)
+      if (shift) { dispatch({ type: 'LOGIN', user, shift }); navigate(user.role === 'staff' ? '/' : '/dashboard'); return }
+    }
     setStep(3)
+  }
+
+  // ── Auto-login helper when shift is already assigned ──────
+  const loginWithShift = (user: User, shiftId: import('../types').ShiftId) => {
+    const shift = SHIFTS.find(s => s.id === shiftId)
+    if (!shift) { setStep(3); return }
+    dispatch({ type: 'LOGIN', user, shift })
+    navigate(user.role === 'staff' ? '/' : '/dashboard')
   }
 
   // ── Step 3: start shift ────────────────────────────────────
   const handleStartShift = () => {
     if (!verifiedUser || !selectedShift) return
     dispatch({ type: 'LOGIN', user: verifiedUser, shift: selectedShift })
-    navigate(verifiedUser.role === 'staff' ? '/' : verifiedUser.role === 'supervisor' ? '/review' : '/reports')
+    navigate(verifiedUser.role === 'staff' ? '/' : '/dashboard')
   }
 
   const isNew = foundUser && !foundUser.pinSet

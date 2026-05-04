@@ -65,6 +65,7 @@ export interface User {
   avatar: string
   username: string
   telegramId?: string
+  defaultShift?: ShiftId
 }
 
 export type TaskStatus = 'pending' | 'in_progress' | 'done' | 'late'
