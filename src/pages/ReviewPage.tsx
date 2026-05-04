@@ -35,13 +35,16 @@ export default function ReviewPage() {
     setSelected(next ?? null)
   }
 
+  /* Mobile: show detail view when an item is selected */
+  const showDetail = !!selected
+
   return (
     <div className="h-full">
       <h2 className="text-xl font-bold text-[var(--text)] mb-4">{s.review_title}</h2>
 
       <div className="flex flex-col md:flex-row gap-4 md:h-[calc(100vh-180px)]">
-        {/* ── Left panel ── */}
-        <div className="md:w-[380px] md:min-w-[380px] flex flex-col bg-[var(--surface)] border border-[var(--border)] rounded-lg overflow-hidden">
+        {/* ── Left panel (list) — hidden on mobile when detail is open ── */}
+        <div className={`md:w-[380px] md:min-w-[380px] flex flex-col bg-[var(--surface)] border border-[var(--border)] rounded-lg overflow-hidden ${showDetail ? 'hidden md:flex' : 'flex'}`}>
           {/* Header + tabs */}
           <div className="p-4 border-b border-[var(--border)]">
             <div className="flex items-center justify-between mb-3">
@@ -95,13 +98,14 @@ export default function ReviewPage() {
                     </span>
                   </div>
                 </div>
+                <span className="text-[var(--text-muted)] text-sm flex-shrink-0">›</span>
               </button>
             ))}
           </div>
         </div>
 
-        {/* ── Right panel ── */}
-        <div className="flex-1 flex flex-col bg-[var(--surface)] border border-[var(--border)] rounded-lg overflow-hidden">
+        {/* ── Right panel (detail) — hidden on mobile when nothing selected ── */}
+        <div className={`flex-1 flex flex-col bg-[var(--surface)] border border-[var(--border)] rounded-lg overflow-hidden ${showDetail ? 'flex' : 'hidden md:flex'}`}>
           {!selected ? (
             <div className="flex-1 flex items-center justify-center text-[var(--text-muted)]">
               <div className="text-center">
@@ -112,7 +116,14 @@ export default function ReviewPage() {
           ) : (
             <>
               {/* Staff + task info */}
-              <div className="p-5 border-b border-[var(--border)]">
+              <div className="p-4 border-b border-[var(--border)]">
+                {/* Back button — mobile only */}
+                <button
+                  className="md:hidden flex items-center gap-1 text-brand-600 text-sm font-medium mb-3"
+                  onClick={() => setSelected(null)}
+                >
+                  ‹ {lang === 'bm' ? 'Kembali' : 'Back'}
+                </button>
                 <div className="flex items-center gap-3 mb-3">
                   <Avatar emoji={selected.staffAvatar} size="lg" name={selected.staffName} />
                   <div>
