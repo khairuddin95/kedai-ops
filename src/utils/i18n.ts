@@ -358,6 +358,9 @@ export const STRINGS: Record<Lang, Record<string, string>> = {
     overdue_tasks_desc: 'Tugasan ini sepatutnya sudah selesai.',
     minutes_late: 'min lewat',
     pending_tasks: 'tugasan belum siap',
+    confirm_unlink_telegram: 'Buang pautan Telegram untuk staf ini?',
+    unlink_telegram: 'Buang pautan Telegram',
+    telegram_linked: 'Telegram dipautkan',
   },
   en: {
     appName: 'KedaiOps',
@@ -716,6 +719,9 @@ export const STRINGS: Record<Lang, Record<string, string>> = {
     overdue_tasks_desc: 'These tasks should already be done.',
     minutes_late: 'min late',
     pending_tasks: 'tasks pending',
+    confirm_unlink_telegram: 'Unlink Telegram for this staff?',
+    unlink_telegram: 'Unlink Telegram',
+    telegram_linked: 'Telegram linked',
   },
 }
 

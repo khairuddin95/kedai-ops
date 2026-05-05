@@ -354,6 +354,9 @@ export default function StaffPage() {
                   {u.defaultShift && (
                     <span className="text-xs font-medium text-amber-600 dark:text-amber-400">{u.defaultShift === 'morning' ? '☀️' : '🌙'}</span>
                   )}
+                  {u.telegramId && (
+                    <span className="text-xs font-medium text-sky-600 dark:text-sky-400" title={s.telegram_linked}>✈️</span>
+                  )}
                 </div>
               </div>
 
@@ -362,12 +365,12 @@ export default function StaffPage() {
                 {canEditUser(u) && u.telegramId && (
                   <button
                     onClick={async () => {
-                      if (!confirm('Buang pautan Telegram untuk ' + u.name + '?')) return
+                      if (!confirm(`${u.name} — ${s.confirm_unlink_telegram}`)) return
                       if (supabaseConfigured) await db.clearTelegramId(u.id)
                       setUsers(prev => prev.map(x => x.id === u.id ? { ...x, telegramId: undefined } : x))
                     }}
                     className="text-[var(--text-muted)] hover:text-sky-500 transition-colors p-1.5 rounded-md hover:bg-sky-50 dark:hover:bg-sky-900/20"
-                    title="Buang pautan Telegram"
+                    title={s.unlink_telegram}
                   >
                     ✈️
                   </button>
