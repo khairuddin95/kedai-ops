@@ -220,6 +220,19 @@ export async function insertTask(
   return { id: data.id, title: data.title, est: data.est, items: data.items, requiresPhoto: data.requires_photo, groupId }
 }
 
+export async function updateTask(
+  taskId: string,
+  updates: Pick<Task, 'title' | 'est' | 'requiresPhoto' | 'items'>
+): Promise<boolean> {
+  if (!supabase) return false
+  const { error } = await supabase
+    .from('tasks')
+    .update({ title: updates.title, est: updates.est, requires_photo: updates.requiresPhoto ?? false, items: updates.items })
+    .eq('id', taskId)
+  if (error) { console.error('[db] updateTask:', error); return false }
+  return true
+}
+
 export async function deleteTask(taskId: string): Promise<boolean> {
   if (!supabase) return false
   const { error } = await supabase.from('tasks').delete().eq('id', taskId)

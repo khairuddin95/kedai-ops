@@ -24,15 +24,9 @@ export default function TaskDetailPage() {
     g.tasks.map(t => ({ ...t, groupId: g.id, groupTitle: g.title, groupColor: g.color, groupIcon: g.icon }))
   )
   const task = allTasks.find(t => t.id === id)
-  if (!task) return (
-    <div className="text-center py-20 text-[var(--text-muted)]">
-      <div className="text-5xl mb-3">🔍</div>
-      <p>{STRINGS[lang ?? 'bm'].task_not_found}</p>
-      <Button className="mt-4" variant="secondary" onClick={() => navigate('/tasks')}>{STRINGS[lang ?? 'bm'].back}</Button>
-    </div>
-  )
 
-  const existing = state.taskStates[task.id]
+  // All hooks must be called unconditionally — early return comes AFTER
+  const existing = state.taskStates[task?.id ?? '']
   const [checked, setChecked]   = useState<number[]>(existing?.checkedItems ?? [])
   const [photos, setPhotos]     = useState<string[]>(existing?.photos ?? [])
   const [localPhotos, setLocal] = useState<{ file: File; preview: string }[]>([])
@@ -42,20 +36,31 @@ export default function TaskDetailPage() {
   const [lightbox, setLightbox] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const totalItems = task.items.length
+  const totalItems = task?.items.length ?? 0
   const checkCount = checked.length
   const checkPct = totalItems ? Math.round((checkCount / totalItems) * 100) : 0
   const totalPhotoCount = photos.length + localPhotos.length
-  const photosOk = !task.requiresPhoto || totalPhotoCount > 0
+  const photosOk = !task?.requiresPhoto || totalPhotoCount > 0
   const canSubmit = checkCount === totalItems && photosOk && rating > 0
 
   useEffect(() => {
+    if (!task) return
     saveTaskState({
       taskId: task.id,
       checkedItems: checked, photos, notes, rating,
       status: checked.length === totalItems ? 'done' : checked.length > 0 ? 'in_progress' : 'pending',
     })
+  // saveTaskState is stable (useCallback with [state.user])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checked, photos, notes, rating])
+
+  if (!task) return (
+    <div className="text-center py-20 text-[var(--text-muted)]">
+      <div className="text-5xl mb-3">🔍</div>
+      <p>{s.task_not_found}</p>
+      <Button className="mt-4" variant="secondary" onClick={() => navigate('/tasks')}>{s.back}</Button>
+    </div>
+  )
 
   const toggleItem = (i: number) =>
     setChecked(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i])
@@ -173,7 +178,6 @@ export default function TaskDetailPage() {
             onChange={handleFileChange}
           />
           <div className="grid grid-cols-3 gap-2">
-            {/* Uploaded (existing) photos */}
             {photos.map((url, i) => (
               <div key={`up-${i}`} className="relative aspect-square rounded-md overflow-hidden bg-[var(--surface-2)]">
                 <img src={url} alt="" className="w-full h-full object-cover cursor-pointer" onClick={() => setLightbox(url)} />
@@ -183,7 +187,6 @@ export default function TaskDetailPage() {
                 >×</button>
               </div>
             ))}
-            {/* Local preview photos */}
             {localPhotos.map((p, i) => (
               <div key={`loc-${i}`} className="relative aspect-square rounded-md overflow-hidden bg-[var(--surface-2)]">
                 <img src={p.preview} alt="" className="w-full h-full object-cover cursor-pointer" onClick={() => setLightbox(p.preview)} />

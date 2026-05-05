@@ -35,6 +35,7 @@ type Action =
   | { type: 'UPDATE_TASK_GROUP'; groupId: string; updates: Partial<Omit<TaskGroup, 'id' | 'tasks'>> }
   | { type: 'DELETE_TASK_GROUP'; groupId: string }
   | { type: 'ADD_TASK';        groupId: string; task: Task }
+  | { type: 'UPDATE_TASK';     groupId: string; taskId: string; updates: Partial<Task> }
   | { type: 'DELETE_TASK';     groupId: string; taskId: string }
   | { type: 'SET_LANG';        lang: Lang }
   | { type: 'TOGGLE_DARK' }
@@ -75,6 +76,15 @@ function reducer(state: AppState, action: Action): AppState {
         ...state,
         taskGroups: state.taskGroups.map(g =>
           g.id === action.groupId ? { ...g, tasks: [...g.tasks, action.task] } : g
+        ),
+      }
+    case 'UPDATE_TASK':
+      return {
+        ...state,
+        taskGroups: state.taskGroups.map(g =>
+          g.id === action.groupId
+            ? { ...g, tasks: g.tasks.map(t => t.id === action.taskId ? { ...t, ...action.updates } : t) }
+            : g
         ),
       }
     case 'DELETE_TASK':
@@ -138,6 +148,8 @@ interface CtxValue {
   addTaskGroup: (g: Omit<TaskGroup, 'tasks'>) => Promise<TaskGroup | null>
   /** Add a new task to a group */
   addTask: (t: Omit<Task, 'id' | 'groupId' | 'groupTitle' | 'groupColor' | 'groupIcon'>, groupId: string) => Promise<Task | null>
+  /** Edit an existing task */
+  updateTask: (taskId: string, groupId: string, updates: Pick<Task, 'title' | 'est' | 'requiresPhoto' | 'items'>) => Promise<void>
   /** Delete a task */
   deleteTask: (taskId: string, groupId: string) => Promise<void>
   /** Delete a task group (and all its tasks) */
@@ -275,6 +287,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return task
   }, [state.taskGroups])
 
+  const updateTask = useCallback(async (
+    taskId: string,
+    groupId: string,
+    updates: Pick<Task, 'title' | 'est' | 'requiresPhoto' | 'items'>
+  ) => {
+    dispatch({ type: 'UPDATE_TASK', taskId, groupId, updates })
+    if (supabaseConfigured) await db.updateTask(taskId, updates)
+  }, [])
+
   const deleteTask = useCallback(async (taskId: string, groupId: string) => {
     dispatch({ type: 'DELETE_TASK', taskId, groupId })
     if (supabaseConfigured) await db.deleteTask(taskId)
@@ -291,7 +312,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <Ctx.Provider value={{ state, dispatch, loginWithCredentials, submitTask, reviewSubmission, saveTaskState, addTaskGroup, addTask, deleteTask, deleteTaskGroup, updateTaskGroup }}>
+    <Ctx.Provider value={{ state, dispatch, loginWithCredentials, submitTask, reviewSubmission, saveTaskState, addTaskGroup, addTask, updateTask, deleteTask, deleteTaskGroup, updateTaskGroup }}>
       {children}
     </Ctx.Provider>
   )

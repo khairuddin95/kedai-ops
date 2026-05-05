@@ -109,7 +109,7 @@ export default function LoanPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Padam rekod pinjaman ini?')) return
+    if (!confirm(s.confirm_del_loan)) return
     if (supabaseConfigured) await db.deleteLoanRequest(id)
     setLoans(prev => prev.filter(r => r.id !== id))
   }
@@ -126,8 +126,10 @@ export default function LoanPage() {
     returned: loans.filter(r => r.status === 'returned').length,
   }
 
+  const overdueCount = loans.filter(isOverdue).length
+
   const pills: { key: LoanStatus | 'all'; label: string }[] = [
-    { key: 'all',      label: `Semua (${counts.all})` },
+    { key: 'all',      label: `${s.all} (${counts.all})` },
     { key: 'pending',  label: `${s.loan_status_pending} (${counts.pending})` },
     { key: 'approved', label: `${s.loan_status_approved} (${counts.approved})` },
     { key: 'rejected', label: `${s.loan_status_rejected} (${counts.rejected})` },
@@ -151,6 +153,16 @@ export default function LoanPage() {
           </Button>
         )}
       </div>
+
+      {/* Overdue alert */}
+      {overdueCount > 0 && (
+        <div className="flex items-center gap-3 px-4 py-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
+          <span className="text-xl flex-shrink-0">⚠️</span>
+          <p className="text-sm font-semibold text-red-700 dark:text-red-400">
+            {overdueCount} {s.overdue_count} — {s.overdue_alert}
+          </p>
+        </div>
+      )}
 
       {/* Toast */}
       {toast && (
@@ -328,13 +340,13 @@ export default function LoanPage() {
                     )}
                     {r.approvedByName && (
                       <div>
-                        <span className="text-xs text-[var(--text-muted)]">{r.status === 'rejected' ? 'Ditolak oleh' : 'Diluluskan oleh'}</span>
+                        <span className="text-xs text-[var(--text-muted)]">{r.status === 'rejected' ? s.rejected_by : s.approved_by}</span>
                         <p className="text-[var(--text)] mt-0.5 font-medium">{r.approvedByName}</p>
                       </div>
                     )}
                     {r.returnedAt && (
                       <div>
-                        <span className="text-xs text-[var(--text-muted)]">Tarikh Dipulangkan</span>
+                        <span className="text-xs text-[var(--text-muted)]">{s.returned_date}</span>
                         <p className="text-emerald-600 dark:text-emerald-400 mt-0.5">{fmtDate(r.returnedAt)}</p>
                       </div>
                     )}
@@ -386,7 +398,7 @@ export default function LoanPage() {
                           onClick={() => handleDelete(r.id)}
                           className="ml-auto text-xs text-[var(--text-muted)] hover:text-red-500 transition-colors px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
                         >
-                          🗑 Padam
+                          🗑 {s.delete}
                         </button>
                       </div>
                     </div>

@@ -25,10 +25,10 @@ const SHIFT_OPTIONS: { value: TaskGroupShift; icon: string; labelKey: string }[]
   { value: 'evening', icon: '🌙', labelKey: 'shift_evening_only' },
   { value: 'both',    icon: '🌐', labelKey: 'shift_both' },
 ]
-const blankTask  = { title: '', est: 10, requiresPhoto: false, items: [''] }
+const blankTask = { title: '', est: 10, requiresPhoto: false, items: [''] }
 
 export default function TasksAdminPage() {
-  const { state, addTaskGroup, addTask, deleteTask, deleteTaskGroup, updateTaskGroup } = useApp()
+  const { state, addTaskGroup, addTask, updateTask, deleteTask, deleteTaskGroup, updateTaskGroup } = useApp()
   const lang = state.lang
   const s = STRINGS[lang]
 
@@ -37,10 +37,15 @@ export default function TasksAdminPage() {
   const [gForm, setGForm]             = useState({ ...blankGroup })
   const [savingG, setSavingG]         = useState(false)
 
-  // per-group "add task" form state
-  const [addingTask, setAddingTask]   = useState<string | null>(null)  // groupId
+  // add-task state
+  const [addingTask, setAddingTask]   = useState<string | null>(null)   // groupId
   const [tForm, setTForm]             = useState({ ...blankTask })
   const [savingT, setSavingT]         = useState(false)
+
+  // edit-task state
+  const [editingTask, setEditingTask] = useState<{ taskId: string; groupId: string } | null>(null)
+  const [editForm, setEditForm]       = useState({ ...blankTask })
+  const [savingE, setSavingE]         = useState(false)
 
   const [toast, setToast]             = useState('')
   const [error, setError]             = useState('')
@@ -60,10 +65,11 @@ export default function TasksAdminPage() {
     showToast(s.group_added)
   }
 
-  // ── Task form ───────────────────────────────────────────────
+  // ── Add task form ───────────────────────────────────────────
 
   const openTaskForm = (groupId: string) => {
     setAddingTask(groupId)
+    setEditingTask(null)
     setTForm({ ...blankTask })
     setError('')
   }
@@ -87,6 +93,36 @@ export default function TasksAdminPage() {
     showToast(s.task_added)
   }
 
+  // ── Edit task form ──────────────────────────────────────────
+
+  const openEditForm = (task: { id: string; title: string; est: number; requiresPhoto?: boolean; items: string[] }, groupId: string) => {
+    setEditingTask({ taskId: task.id, groupId })
+    setAddingTask(null)
+    setEditForm({ title: task.title, est: task.est, requiresPhoto: task.requiresPhoto ?? false, items: task.items.length ? task.items : [''] })
+    setError('')
+  }
+
+  const updateEditItem = (i: number, val: string) =>
+    setEditForm(f => { const items = [...f.items]; items[i] = val; return { ...f, items } })
+
+  const addEditItem = () => setEditForm(f => ({ ...f, items: [...f.items, ''] }))
+
+  const removeEditItem = (i: number) =>
+    setEditForm(f => ({ ...f, items: f.items.filter((_, j) => j !== i) }))
+
+  const handleUpdateTask = async () => {
+    if (!editingTask) return
+    const items = editForm.items.map(s => s.trim()).filter(Boolean)
+    if (!editForm.title.trim() || items.length === 0) { setError(s.fill_all); return }
+    setError(''); setSavingE(true)
+    await updateTask(editingTask.taskId, editingTask.groupId, { title: editForm.title.trim(), est: editForm.est, requiresPhoto: editForm.requiresPhoto, items })
+    setSavingE(false)
+    setEditingTask(null)
+    showToast(s.task_saved)
+  }
+
+  // ── Delete ──────────────────────────────────────────────────
+
   const handleDeleteTask = async (taskId: string, groupId: string) => {
     if (!confirm(s.confirm_del_task)) return
     await deleteTask(taskId, groupId)
@@ -99,6 +135,80 @@ export default function TasksAdminPage() {
 
   const toggle = (id: string) => setExpanded(e => ({ ...e, [id]: !e[id] }))
 
+  // ── Task form renderer (shared between add + edit) ──────────
+
+  function TaskForm({
+    form, setForm, onUpdateItem, onAddItem, onRemoveItem, onSave, onCancel, saving,
+  }: {
+    form: typeof blankTask
+    setForm: React.Dispatch<React.SetStateAction<typeof blankTask>>
+    onUpdateItem: (i: number, val: string) => void
+    onAddItem: () => void
+    onRemoveItem: (i: number) => void
+    onSave: () => void
+    onCancel: () => void
+    saving: boolean
+  }) {
+    return (
+      <div className="space-y-3">
+        <input
+          value={form.title}
+          onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+          placeholder={s.task_title}
+          className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-md px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none focus:border-brand-400 transition-colors"
+        />
+        <div className="flex items-center gap-3">
+          <div className="flex-1">
+            <label className="block text-xs text-[var(--text-soft)] mb-1">{s.task_est}</label>
+            <input
+              type="number"
+              min={1}
+              max={120}
+              value={form.est}
+              onChange={e => setForm(f => ({ ...f, est: Number(e.target.value) }))}
+              className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-md px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-brand-400 transition-colors"
+            />
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer pt-5">
+            <input
+              type="checkbox"
+              checked={form.requiresPhoto}
+              onChange={e => setForm(f => ({ ...f, requiresPhoto: e.target.checked }))}
+              className="w-4 h-4 accent-brand-600"
+            />
+            <span className="text-sm text-[var(--text-soft)]">📷 {s.task_photo}</span>
+          </label>
+        </div>
+        <div>
+          <label className="block text-xs text-[var(--text-soft)] mb-2">{s.task_items}</label>
+          <div className="space-y-2">
+            {form.items.map((item, i) => (
+              <div key={i} className="flex gap-2">
+                <input
+                  value={item}
+                  onChange={e => onUpdateItem(i, e.target.value)}
+                  placeholder={`${i + 1}. ${s.item_placeholder}`}
+                  className="flex-1 bg-[var(--surface)] border border-[var(--border)] rounded-md px-3 py-1.5 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none focus:border-brand-400 transition-colors"
+                />
+                {form.items.length > 1 && (
+                  <button onClick={() => onRemoveItem(i)} className="text-[var(--text-muted)] hover:text-red-500 transition-colors px-2">×</button>
+                )}
+              </div>
+            ))}
+          </div>
+          <button onClick={onAddItem} className="mt-2 text-xs text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1">
+            + {s.add_item}
+          </button>
+        </div>
+        {error && <p className="text-xs text-red-500 bg-red-50 dark:bg-red-900/20 rounded px-3 py-2">{error}</p>}
+        <div className="flex gap-2">
+          <Button variant="secondary" className="flex-1" onClick={onCancel}>{s.cancel}</Button>
+          <Button className="flex-1" loading={saving} onClick={onSave}>{s.save}</Button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-5 max-w-3xl">
       {/* Header */}
@@ -106,7 +216,7 @@ export default function TasksAdminPage() {
         <div>
           <h2 className="text-xl font-bold text-[var(--text)]">{s.task_mgmt}</h2>
           <p className="text-sm text-[var(--text-muted)] mt-0.5">
-            {state.taskGroups.length} kumpulan · {state.taskGroups.reduce((n, g) => n + g.tasks.length, 0)} {s.tasks_count}
+            {state.taskGroups.length} {s.group_count} · {state.taskGroups.reduce((n, g) => n + g.tasks.length, 0)} {s.tasks_count}
           </p>
         </div>
         {!showGroupForm && (
@@ -128,15 +238,11 @@ export default function TasksAdminPage() {
         <Card>
           <h3 className="font-bold text-sm text-[var(--text)] mb-4">+ {s.add_group}</h3>
 
-          {/* Color picker */}
           <div className="mb-4">
             <label className="block text-xs font-medium text-[var(--text-soft)] mb-2">{s.group_color}</label>
             <div className="flex gap-2 flex-wrap">
               {PRESET_COLORS.map(c => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setGForm(f => ({ ...f, color: c }))}
+                <button key={c} type="button" onClick={() => setGForm(f => ({ ...f, color: c }))}
                   className={`w-8 h-8 rounded-full transition-all ${gForm.color === c ? 'ring-2 ring-offset-2 ring-[var(--text)] scale-110' : ''}`}
                   style={{ background: c }}
                 />
@@ -144,20 +250,12 @@ export default function TasksAdminPage() {
             </div>
           </div>
 
-          {/* Icon picker */}
           <div className="mb-4">
             <label className="block text-xs font-medium text-[var(--text-soft)] mb-2">{s.group_icon}</label>
             <div className="flex gap-2 flex-wrap">
               {Object.entries(ICONS).map(([key, emoji]) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setGForm(f => ({ ...f, icon: key }))}
-                  className={`w-10 h-10 rounded-lg text-xl flex items-center justify-center transition-all ${
-                    gForm.icon === key
-                      ? 'ring-2 ring-brand-500 scale-110'
-                      : 'bg-[var(--surface-2)]'
-                  }`}
+                <button key={key} type="button" onClick={() => setGForm(f => ({ ...f, icon: key }))}
+                  className={`w-10 h-10 rounded-lg text-xl flex items-center justify-center transition-all ${gForm.icon === key ? 'ring-2 ring-brand-500 scale-110' : 'bg-[var(--surface-2)]'}`}
                   style={gForm.icon === key ? { background: gForm.color + '33' } : {}}
                 >
                   {emoji}
@@ -172,7 +270,7 @@ export default function TasksAdminPage() {
               <input
                 value={gForm.title}
                 onChange={e => setGForm(f => ({ ...f, title: e.target.value }))}
-                placeholder="Contoh: Persediaan Lunch"
+                placeholder={lang === 'bm' ? 'Contoh: Persediaan Lunch' : 'e.g. Lunch Prep'}
                 className="w-full bg-[var(--surface-2)] border border-[var(--border)] rounded-md px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none focus:border-brand-400 transition-colors"
               />
             </div>
@@ -181,7 +279,7 @@ export default function TasksAdminPage() {
               <input
                 value={gForm.time}
                 onChange={e => setGForm(f => ({ ...f, time: e.target.value }))}
-                placeholder="10:00 pagi"
+                placeholder={lang === 'bm' ? '10:00 pagi' : '10:00 am'}
                 className="w-full bg-[var(--surface-2)] border border-[var(--border)] rounded-md px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none focus:border-brand-400 transition-colors"
               />
             </div>
@@ -189,17 +287,12 @@ export default function TasksAdminPage() {
               <label className="block text-xs font-medium text-[var(--text-soft)] mb-2">{s.group_shift}</label>
               <div className="flex gap-2">
                 {SHIFT_OPTIONS.map(opt => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setGForm(f => ({ ...f, shift: opt.value }))}
+                  <button key={opt.value} type="button" onClick={() => setGForm(f => ({ ...f, shift: opt.value }))}
                     className={`flex-1 py-2 rounded-md text-xs font-medium border transition-all ${
                       gForm.shift === opt.value
-                        ? opt.value === 'morning'
-                          ? 'bg-amber-100 border-amber-400 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                          : opt.value === 'evening'
-                          ? 'bg-indigo-100 border-indigo-400 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
-                          : 'bg-brand-100 border-brand-400 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400'
+                        ? opt.value === 'morning' ? 'bg-amber-100 border-amber-400 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                        : opt.value === 'evening' ? 'bg-indigo-100 border-indigo-400 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
+                        : 'bg-brand-100 border-brand-400 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400'
                         : 'bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-muted)]'
                     }`}
                   >
@@ -212,15 +305,11 @@ export default function TasksAdminPage() {
               <label className="block text-xs font-medium text-[var(--text-soft)] mb-2">{s.group_frequency}</label>
               <div className="flex gap-2">
                 {(['daily', 'weekly'] as TaskGroupFrequency[]).map(f => (
-                  <button
-                    key={f}
-                    type="button"
-                    onClick={() => setGForm(prev => ({ ...prev, frequency: f }))}
+                  <button key={f} type="button" onClick={() => setGForm(prev => ({ ...prev, frequency: f }))}
                     className={`flex-1 py-2 rounded-md text-xs font-medium border transition-all ${
                       gForm.frequency === f
-                        ? f === 'daily'
-                          ? 'bg-emerald-100 border-emerald-400 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                          : 'bg-purple-100 border-purple-400 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+                        ? f === 'daily' ? 'bg-emerald-100 border-emerald-400 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                        : 'bg-purple-100 border-purple-400 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
                         : 'bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-muted)]'
                     }`}
                   >
@@ -230,22 +319,15 @@ export default function TasksAdminPage() {
               </div>
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-xs font-medium text-[var(--text-soft)] mb-2">
-                {lang === 'bm' ? 'Jabatan' : 'Department'}
-              </label>
+              <label className="block text-xs font-medium text-[var(--text-soft)] mb-2">{s.dept_label}</label>
               <div className="flex gap-2">
                 {DEPT_OPTIONS.map(opt => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setGForm(f => ({ ...f, department: opt.value }))}
+                  <button key={opt.value} type="button" onClick={() => setGForm(f => ({ ...f, department: opt.value }))}
                     className={`flex-1 py-2 rounded-md text-xs font-medium border transition-all ${
                       gForm.department === opt.value
-                        ? opt.value === 'kitchen'
-                          ? 'bg-orange-100 border-orange-400 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
-                          : opt.value === 'service'
-                          ? 'bg-sky-100 border-sky-400 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400'
-                          : 'bg-brand-100 border-brand-400 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400'
+                        ? opt.value === 'kitchen' ? 'bg-orange-100 border-orange-400 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                        : opt.value === 'service' ? 'bg-sky-100 border-sky-400 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400'
+                        : 'bg-brand-100 border-brand-400 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400'
                         : 'bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-muted)]'
                     }`}
                   >
@@ -289,23 +371,18 @@ export default function TasksAdminPage() {
           {/* Expanded content */}
           {expanded[group.id] && (
             <div className="border-t border-[var(--border)] bg-[var(--surface-2)]">
-              {/* Shift + frequency inline edit */}
+              {/* Inline toggles */}
               <div className="px-4 py-3 border-b border-[var(--border)] space-y-2">
                 <div>
                   <p className="text-xs font-medium text-[var(--text-soft)] mb-1.5">{s.group_shift}</p>
                   <div className="flex gap-1.5">
                     {SHIFT_OPTIONS.map(opt => (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => updateTaskGroup(group.id, { shift: opt.value })}
+                      <button key={opt.value} type="button" onClick={() => updateTaskGroup(group.id, { shift: opt.value })}
                         className={`flex-1 py-1.5 rounded-md text-xs font-medium border transition-all ${
                           group.shift === opt.value
-                            ? opt.value === 'morning'
-                              ? 'bg-amber-100 border-amber-400 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                              : opt.value === 'evening'
-                              ? 'bg-indigo-100 border-indigo-400 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
-                              : 'bg-brand-100 border-brand-400 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400'
+                            ? opt.value === 'morning' ? 'bg-amber-100 border-amber-400 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                            : opt.value === 'evening' ? 'bg-indigo-100 border-indigo-400 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
+                            : 'bg-brand-100 border-brand-400 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400'
                             : 'bg-[var(--surface)] border-[var(--border)] text-[var(--text-muted)]'
                         }`}
                       >
@@ -318,15 +395,11 @@ export default function TasksAdminPage() {
                   <p className="text-xs font-medium text-[var(--text-soft)] mb-1.5">{s.group_frequency}</p>
                   <div className="flex gap-1.5">
                     {(['daily', 'weekly'] as TaskGroupFrequency[]).map(f => (
-                      <button
-                        key={f}
-                        type="button"
-                        onClick={() => updateTaskGroup(group.id, { frequency: f })}
+                      <button key={f} type="button" onClick={() => updateTaskGroup(group.id, { frequency: f })}
                         className={`flex-1 py-1.5 rounded-md text-xs font-medium border transition-all ${
                           group.frequency === f
-                            ? f === 'daily'
-                              ? 'bg-emerald-100 border-emerald-400 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                              : 'bg-purple-100 border-purple-400 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+                            ? f === 'daily' ? 'bg-emerald-100 border-emerald-400 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                            : 'bg-purple-100 border-purple-400 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
                             : 'bg-[var(--surface)] border-[var(--border)] text-[var(--text-muted)]'
                         }`}
                       >
@@ -336,20 +409,15 @@ export default function TasksAdminPage() {
                   </div>
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-[var(--text-soft)] mb-1.5">{lang === 'bm' ? 'Jabatan' : 'Department'}</p>
+                  <p className="text-xs font-medium text-[var(--text-soft)] mb-1.5">{s.dept_label}</p>
                   <div className="flex gap-1.5">
                     {DEPT_OPTIONS.map(opt => (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => updateTaskGroup(group.id, { department: opt.value })}
+                      <button key={opt.value} type="button" onClick={() => updateTaskGroup(group.id, { department: opt.value })}
                         className={`flex-1 py-1.5 rounded-md text-xs font-medium border transition-all ${
                           (group.department ?? 'all') === opt.value
-                            ? opt.value === 'kitchen'
-                              ? 'bg-orange-100 border-orange-400 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
-                              : opt.value === 'service'
-                              ? 'bg-sky-100 border-sky-400 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400'
-                              : 'bg-brand-100 border-brand-400 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400'
+                            ? opt.value === 'kitchen' ? 'bg-orange-100 border-orange-400 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                            : opt.value === 'service' ? 'bg-sky-100 border-sky-400 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400'
+                            : 'bg-brand-100 border-brand-400 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400'
                             : 'bg-[var(--surface)] border-[var(--border)] text-[var(--text-muted)]'
                         }`}
                       >
@@ -359,105 +427,73 @@ export default function TasksAdminPage() {
                   </div>
                 </div>
               </div>
+
               {/* Task list */}
               {group.tasks.length === 0 && addingTask !== group.id && (
                 <p className="px-5 py-4 text-sm text-[var(--text-muted)]">{s.no_tasks}</p>
               )}
               {group.tasks.map(task => (
-                <div key={task.id} className="flex items-center gap-3 px-5 py-3 border-b border-[var(--border)] last:border-0">
-                  <div
-                    className="w-2 h-2 rounded-full flex-shrink-0"
-                    style={{ background: group.color }}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-[var(--text)]">{task.title}</div>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-xs text-[var(--text-muted)]">⏱ {task.est} {s.min}</span>
-                      <span className="text-xs text-[var(--text-muted)]">· {task.items.length} item</span>
-                      {task.requiresPhoto && <span className="text-xs text-amber-600 dark:text-amber-400">📷</span>}
+                <div key={task.id}>
+                  {/* Task row */}
+                  {editingTask?.taskId !== task.id && (
+                    <div className="flex items-center gap-3 px-5 py-3 border-b border-[var(--border)] last:border-0">
+                      <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: group.color }} />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-[var(--text)]">{task.title}</div>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-xs text-[var(--text-muted)]">⏱ {task.est} {s.min}</span>
+                          <span className="text-xs text-[var(--text-muted)]">· {task.items.length} item</span>
+                          {task.requiresPhoto && <span className="text-xs text-amber-600 dark:text-amber-400">📷</span>}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => openEditForm(task, group.id)}
+                        className="text-xs text-brand-600 hover:text-brand-700 transition-colors px-2 py-1 rounded hover:bg-brand-50 dark:hover:bg-brand-900/20 flex-shrink-0"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={() => handleDeleteTask(task.id, group.id)}
+                        className="text-[var(--text-muted)] hover:text-red-500 transition-colors p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 flex-shrink-0"
+                      >
+                        🗑
+                      </button>
                     </div>
-                  </div>
-                  <button
-                    onClick={() => handleDeleteTask(task.id, group.id)}
-                    className="text-[var(--text-muted)] hover:text-red-500 transition-colors p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 flex-shrink-0"
-                  >
-                    🗑
-                  </button>
+                  )}
+
+                  {/* Inline edit form */}
+                  {editingTask?.taskId === task.id && (
+                    <div className="px-5 py-4 space-y-3 border-b border-[var(--border)] bg-[var(--surface)]">
+                      <p className="text-xs font-semibold text-[var(--text-soft)]">✏️ {s.edit_task}: <span className="text-[var(--text)]">{task.title}</span></p>
+                      <TaskForm
+                        form={editForm}
+                        setForm={setEditForm}
+                        onUpdateItem={updateEditItem}
+                        onAddItem={addEditItem}
+                        onRemoveItem={removeEditItem}
+                        onSave={handleUpdateTask}
+                        onCancel={() => { setEditingTask(null); setError('') }}
+                        saving={savingE}
+                      />
+                    </div>
+                  )}
                 </div>
               ))}
 
-              {/* Add task form */}
+              {/* Add task / delete group footer */}
               {addingTask === group.id ? (
                 <div className="px-5 py-4 space-y-3 border-t border-[var(--border)]">
                   <p className="text-xs font-semibold text-[var(--text-soft)]">+ {s.add_task}</p>
-
-                  <input
-                    value={tForm.title}
-                    onChange={e => setTForm(f => ({ ...f, title: e.target.value }))}
-                    placeholder={s.task_title}
-                    className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-md px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none focus:border-brand-400 transition-colors"
+                  <TaskForm
+                    form={tForm}
+                    setForm={setTForm}
+                    onUpdateItem={updateItem}
+                    onAddItem={addItem}
+                    onRemoveItem={removeItem}
+                    onSave={() => handleSaveTask(group.id)}
+                    onCancel={() => { setAddingTask(null); setError('') }}
+                    saving={savingT}
                   />
-
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1">
-                      <label className="block text-xs text-[var(--text-soft)] mb-1">{s.task_est}</label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={120}
-                        value={tForm.est}
-                        onChange={e => setTForm(f => ({ ...f, est: Number(e.target.value) }))}
-                        className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-md px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-brand-400 transition-colors"
-                      />
-                    </div>
-                    <label className="flex items-center gap-2 cursor-pointer pt-5">
-                      <input
-                        type="checkbox"
-                        checked={tForm.requiresPhoto}
-                        onChange={e => setTForm(f => ({ ...f, requiresPhoto: e.target.checked }))}
-                        className="w-4 h-4 accent-brand-600"
-                      />
-                      <span className="text-sm text-[var(--text-soft)]">📷 {s.task_photo}</span>
-                    </label>
-                  </div>
-
-                  {/* Checklist items */}
-                  <div>
-                    <label className="block text-xs text-[var(--text-soft)] mb-2">{s.task_items}</label>
-                    <div className="space-y-2">
-                      {tForm.items.map((item, i) => (
-                        <div key={i} className="flex gap-2">
-                          <input
-                            value={item}
-                            onChange={e => updateItem(i, e.target.value)}
-                            placeholder={`${i + 1}. ${s.item_placeholder}`}
-                            className="flex-1 bg-[var(--surface)] border border-[var(--border)] rounded-md px-3 py-1.5 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none focus:border-brand-400 transition-colors"
-                          />
-                          {tForm.items.length > 1 && (
-                            <button
-                              onClick={() => removeItem(i)}
-                              className="text-[var(--text-muted)] hover:text-red-500 transition-colors px-2"
-                            >
-                              ×
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                    <button
-                      onClick={addItem}
-                      className="mt-2 text-xs text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1"
-                    >
-                      + {s.add_item}
-                    </button>
-                  </div>
-
-                  {error && <p className="text-xs text-red-500 bg-red-50 dark:bg-red-900/20 rounded px-3 py-2">{error}</p>}
-
-                  <div className="flex gap-2">
-                    <Button variant="secondary" className="flex-1" onClick={() => { setAddingTask(null); setError('') }}>{s.cancel}</Button>
-                    <Button className="flex-1" loading={savingT} onClick={() => handleSaveTask(group.id)}>{s.save}</Button>
-                  </div>
                 </div>
               ) : (
                 <div className="px-5 py-3 flex items-center justify-between border-t border-[var(--border)]">
@@ -467,14 +503,12 @@ export default function TasksAdminPage() {
                   >
                     + {s.add_task}
                   </button>
-                  {group.tasks.length === 0 && (
-                    <button
-                      onClick={() => handleDeleteGroup(group.id)}
-                      className="text-xs text-[var(--text-muted)] hover:text-red-500 transition-colors flex items-center gap-1"
-                    >
-                      🗑 {s.delete_group}
-                    </button>
-                  )}
+                  <button
+                    onClick={() => handleDeleteGroup(group.id)}
+                    className="text-xs text-[var(--text-muted)] hover:text-red-500 transition-colors flex items-center gap-1"
+                  >
+                    🗑 {s.delete_group}
+                  </button>
                 </div>
               )}
             </div>
