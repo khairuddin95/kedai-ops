@@ -12,7 +12,7 @@ import Card from '../components/ui/Card'
 import Avatar from '../components/ui/Avatar'
 import Badge from '../components/ui/Badge'
 import StarRating from '../components/ui/StarRating'
-import type { MaintenanceCategory, MaintenancePriority, MaintenanceReport } from '../types'
+import type { Lang, MaintenanceCategory, MaintenancePriority, MaintenanceReport } from '../types'
 
 // ─── Shared helpers ───────────────────────────────────────────
 const TODAY = new Date()
@@ -20,6 +20,8 @@ const MEDALS = ['🥇', '🥈', '🥉']
 const DAY_KEYS_BM = ['Ahd', 'Isn', 'Sel', 'Rab', 'Kha', 'Jum', 'Sab']
 const DAY_KEYS_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
+function startOfDay(d: Date) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x }
+function endOfDay(d: Date)   { const x = new Date(d); x.setHours(23, 59, 59, 999); return x }
 function isSameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
 }
@@ -28,6 +30,139 @@ function isSameMonth(d: Date) {
 }
 function daysBetween(a: Date, b: Date) {
   return Math.floor((b.getTime() - a.getTime()) / 86_400_000)
+}
+function inRange(d: Date | string, range: DateRange): boolean {
+  const t = (d instanceof Date ? d : new Date(d)).getTime()
+  return t >= range.start.getTime() && t <= range.end.getTime()
+}
+function toDateInput(d: Date) {
+  // YYYY-MM-DD in local time
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+function fromDateInput(s: string): Date {
+  // Parse YYYY-MM-DD as a local-midnight Date (avoids UTC shift)
+  const [y, m, d] = s.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+function fmtRange(r: DateRange, lang: Lang) {
+  const sameDay = isSameDay(r.start, r.end)
+  const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' }
+  const locale = lang === 'bm' ? 'ms-MY' : 'en-MY'
+  if (sameDay) return r.start.toLocaleDateString(locale, { ...opts, year: 'numeric' })
+  return `${r.start.toLocaleDateString(locale, opts)} – ${r.end.toLocaleDateString(locale, opts)}`
+}
+
+// ─── Date range ───────────────────────────────────────────────
+type RangePreset = 'today' | '7d' | '30d' | '90d' | 'custom'
+interface DateRange {
+  preset: RangePreset
+  start: Date  // local 00:00:00
+  end: Date    // local 23:59:59
+}
+
+function buildRange(preset: RangePreset, custom?: { start: Date; end: Date }): DateRange {
+  if (preset === 'custom' && custom) {
+    return { preset, start: startOfDay(custom.start), end: endOfDay(custom.end) }
+  }
+  const days = preset === 'today' ? 1 : preset === '7d' ? 7 : preset === '30d' ? 30 : 90
+  const end = endOfDay(new Date())
+  const start = startOfDay(new Date())
+  start.setDate(start.getDate() - (days - 1))
+  return { preset, start, end }
+}
+
+function rangeDays(r: DateRange): number {
+  return Math.max(1, Math.round((r.end.getTime() - r.start.getTime()) / 86_400_000) + 1)
+}
+
+// ─── DateRangePicker component ────────────────────────────────
+function DateRangePicker({ range, onChange }: { range: DateRange; onChange: (r: DateRange) => void }) {
+  const { state } = useApp()
+  const s = STRINGS[state.lang]
+  const [showCustom, setShowCustom] = useState(range.preset === 'custom')
+  const [customStart, setCustomStart] = useState(toDateInput(range.start))
+  const [customEnd, setCustomEnd]     = useState(toDateInput(range.end))
+
+  const presets: { key: RangePreset; label: string }[] = [
+    { key: 'today', label: s.range_today },
+    { key: '7d',    label: s.range_7d },
+    { key: '30d',   label: s.range_30d },
+    { key: '90d',   label: s.range_90d },
+    { key: 'custom', label: `📅 ${s.range_custom}` },
+  ]
+
+  const pickPreset = (p: RangePreset) => {
+    if (p === 'custom') {
+      setShowCustom(true)
+      return
+    }
+    setShowCustom(false)
+    onChange(buildRange(p))
+  }
+
+  const applyCustom = () => {
+    if (!customStart || !customEnd) return
+    const start = fromDateInput(customStart)
+    const end   = fromDateInput(customEnd)
+    if (end < start) return
+    onChange(buildRange('custom', { start, end }))
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-1 p-1 bg-[var(--surface-2)] rounded-xl overflow-x-auto scrollbar-hide">
+        {presets.map(p => (
+          <button
+            key={p.key}
+            onClick={() => pickPreset(p.key)}
+            className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+              range.preset === p.key
+                ? 'bg-[var(--surface)] text-[var(--text)] shadow-sm'
+                : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+            }`}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+
+      {showCustom && (
+        <div className="flex flex-wrap items-end gap-2 p-3 bg-[var(--surface-2)] rounded-lg border border-[var(--border)]">
+          <div>
+            <label className="block text-[10px] font-medium text-[var(--text-muted)] mb-0.5">{s.range_from}</label>
+            <input
+              type="date"
+              value={customStart}
+              max={customEnd || toDateInput(new Date())}
+              onChange={e => setCustomStart(e.target.value)}
+              className="bg-[var(--surface)] border border-[var(--border)] rounded-md px-2 py-1.5 text-xs text-[var(--text)] outline-none focus:border-brand-400"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-medium text-[var(--text-muted)] mb-0.5">{s.range_to}</label>
+            <input
+              type="date"
+              value={customEnd}
+              min={customStart}
+              max={toDateInput(new Date())}
+              onChange={e => setCustomEnd(e.target.value)}
+              className="bg-[var(--surface)] border border-[var(--border)] rounded-md px-2 py-1.5 text-xs text-[var(--text)] outline-none focus:border-brand-400"
+            />
+          </div>
+          <button
+            onClick={applyCustom}
+            disabled={!customStart || !customEnd || fromDateInput(customEnd) < fromDateInput(customStart)}
+            className="px-3 py-1.5 rounded-md bg-brand-600 text-white text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-brand-700 transition-colors"
+          >
+            {s.range_apply}
+          </button>
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ─── Maintenance constants ────────────────────────────────────
@@ -39,28 +174,65 @@ const PRIORITY_COLOR: Record<MaintenancePriority, string> = {
 }
 const STATUS_COLOR = { open: '#3b82f6', in_progress: '#f59e0b', resolved: '#10b981' }
 
+// Build day-by-day buckets across a range. Caps at 90 buckets to avoid
+// rendering hundreds of bars; for longer ranges, groups by week.
+function bucketByDay(range: DateRange, lang: Lang) {
+  const days = rangeDays(range)
+  const dayKeys = lang === 'en' ? DAY_KEYS_EN : DAY_KEYS_BM
+  const locale = lang === 'bm' ? 'ms-MY' : 'en-MY'
+
+  if (days <= 60) {
+    return Array.from({ length: days }, (_, i) => {
+      const d = new Date(range.start); d.setDate(d.getDate() + i)
+      return {
+        date: d,
+        // Single-day shows weekday; longer ranges use day/month
+        label: days <= 7 ? dayKeys[d.getDay()] : d.toLocaleDateString(locale, { day: '2-digit', month: 'short' }),
+        isToday: isSameDay(d, TODAY),
+      }
+    })
+  }
+  // Week buckets (start of week = range.start + 7n)
+  const weeks = Math.ceil(days / 7)
+  return Array.from({ length: weeks }, (_, i) => {
+    const start = new Date(range.start); start.setDate(start.getDate() + i * 7)
+    const end = new Date(start); end.setDate(end.getDate() + 6)
+    return {
+      date: start,
+      endDate: end,
+      label: start.toLocaleDateString(locale, { day: '2-digit', month: 'short' }),
+      isToday: TODAY >= start && TODAY <= end,
+    }
+  })
+}
+
 // ─── Tab: Task Reports ────────────────────────────────────────
-function TaskTab() {
+function TaskTab({ range }: { range: DateRange }) {
   const { state } = useApp()
   const lang = state.lang
   const s = STRINGS[lang]
-  const subs = state.submissions
+  const allSubs = state.submissions
   const taskGroups = state.taskGroups
 
   const stats = useMemo(() => {
+    const subs = allSubs.filter(sub => inRange(new Date(sub.submittedAt), range))
     const total     = subs.length
-    const approved  = subs.filter(s => s.status === 'approved').length
-    const todaySubs = subs.filter(s => isSameDay(new Date(s.submittedAt), TODAY))
-    const ratings   = subs.filter(s => s.rating > 0).map(s => s.rating)
+    const approved  = subs.filter(sub => sub.status === 'approved').length
+    const ratings   = subs.filter(sub => sub.rating > 0).map(sub => sub.rating)
     const avgRating = ratings.length ? (ratings.reduce((a, b) => a + b, 0) / ratings.length) : 0
-    const staffSet  = new Set(subs.map(s => s.staffName))
+    const staffSet  = new Set(subs.map(sub => sub.staffName))
     const compRate  = total ? Math.round((approved / total) * 100) : 0
-    const dayKeys   = lang === 'en' ? DAY_KEYS_EN : DAY_KEYS_BM
 
-    const weekly = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(TODAY); d.setDate(d.getDate() - (6 - i))
-      const count = subs.filter(s => isSameDay(new Date(s.submittedAt), d)).length
-      return { day: dayKeys[d.getDay()], completed: count, isToday: i === 6 }
+    const buckets = bucketByDay(range, lang)
+    const trend = buckets.map(bk => {
+      const bkEnd = (bk as { endDate?: Date }).endDate ?? bk.date
+      const start = startOfDay(bk.date).getTime()
+      const end = endOfDay(bkEnd).getTime()
+      const count = subs.filter(sub => {
+        const t = new Date(sub.submittedAt).getTime()
+        return t >= start && t <= end
+      }).length
+      return { day: bk.label, completed: count, isToday: bk.isToday }
     })
 
     const branchMap = new Map<string, { count: number; approved: number; ratings: number[]; flags: number }>()
@@ -105,10 +277,9 @@ function TaskTab() {
     let insightTask = ''; let insightCount = 0
     taskFlagCount.forEach((count, title) => { if (count > insightCount) { insightTask = title; insightCount = count } })
 
-    return { total, approved, compRate, todayCount: todaySubs.length, avgRating, staffCount: staffSet.size, weekly, branches, topStaff, insightTask, insightCount }
-  }, [subs, lang])
+    return { total, approved, compRate, avgRating, staffCount: staffSet.size, trend, branches, topStaff, insightTask, insightCount }
+  }, [allSubs, lang, range])
 
-  // All hooks above this line — safe to early-return now
   if (!state.dbReady) {
     return <div className="text-center py-20 text-[var(--text-muted)] text-sm">{s.loading}</div>
   }
@@ -116,7 +287,7 @@ function TaskTab() {
   const kpis = [
     { label: s.completion_rate, value: `${stats.compRate}%`,              icon: '📈', color: '#3b82f6', bg: 'bg-blue-50 dark:bg-blue-900/20' },
     { label: s.avg_rating,      value: `${stats.avgRating.toFixed(1)} ⭐`, icon: '⭐', color: '#f59e0b', bg: 'bg-amber-50 dark:bg-amber-900/20' },
-    { label: s.total_today,     value: String(stats.todayCount),           icon: '✅', color: '#10b981', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
+    { label: s.total_in_range,  value: String(stats.total),                icon: '✅', color: '#10b981', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
     { label: s.active_staff,    value: String(stats.staffCount),           icon: '👥', color: '#8b5cf6', bg: 'bg-violet-50 dark:bg-violet-900/20' },
   ]
 
@@ -126,7 +297,6 @@ function TaskTab() {
 
   return (
     <div className="space-y-5">
-      {/* Department breakdown */}
       {(kitchenGroups > 0 || serviceGroups > 0) && (
         <div className="grid grid-cols-3 gap-3">
           {[
@@ -154,19 +324,23 @@ function TaskTab() {
       </div>
 
       <Card>
-        <h3 className="font-bold text-[var(--text)] mb-4">{s.weekly_trend}</h3>
-        <div className="h-44">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={stats.weekly} barSize={28} margin={{ top: 5, right: 5, bottom: 5, left: -10 }}>
-              <XAxis dataKey="day" tick={{ fontSize: 12, fill: 'var(--ink-500)' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: 'var(--ink-400)' }} axisLine={false} tickLine={false} allowDecimals={false} />
-              <Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} cursor={{ fill: 'rgba(59,130,246,0.08)' }} />
-              <Bar dataKey="completed" radius={[4, 4, 0, 0]}>
-                {stats.weekly.map((e, i) => <Cell key={i} fill={e.isToday ? '#2563eb' : '#93c5fd'} />)}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        <h3 className="font-bold text-[var(--text)] mb-4">{s.daily_trend}</h3>
+        {stats.total === 0 ? (
+          <div className="h-44 flex items-center justify-center text-sm text-[var(--text-muted)]">{s.no_data_range}</div>
+        ) : (
+          <div className="h-44">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={stats.trend} barSize={Math.max(6, Math.min(28, Math.floor(280 / stats.trend.length)))} margin={{ top: 5, right: 5, bottom: 5, left: -10 }}>
+                <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'var(--ink-500)' }} axisLine={false} tickLine={false} interval={stats.trend.length > 14 ? Math.floor(stats.trend.length / 7) : 0} />
+                <YAxis tick={{ fontSize: 11, fill: 'var(--ink-400)' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} cursor={{ fill: 'rgba(59,130,246,0.08)' }} />
+                <Bar dataKey="completed" radius={[4, 4, 0, 0]}>
+                  {stats.trend.map((e, i) => <Cell key={i} fill={e.isToday ? '#2563eb' : '#93c5fd'} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </Card>
 
       <div className="grid md:grid-cols-2 gap-4">
@@ -175,7 +349,7 @@ function TaskTab() {
             <h3 className="font-bold text-[var(--text)]">{s.branch_performance}</h3>
           </div>
           {stats.branches.length === 0 ? (
-            <div className="p-8 text-center text-sm text-[var(--text-muted)]">{s.no_submissions}</div>
+            <div className="p-8 text-center text-sm text-[var(--text-muted)]">{s.no_data_range}</div>
           ) : (
             <div className="divide-y divide-[var(--border)]">
               {stats.branches.map(b => (
@@ -207,7 +381,7 @@ function TaskTab() {
         <Card>
           <h3 className="font-bold text-[var(--text)] mb-4">{s.top_performers}</h3>
           {stats.topStaff.length === 0 ? (
-            <div className="py-8 text-center text-sm text-[var(--text-muted)]">{s.no_submissions}</div>
+            <div className="py-8 text-center text-sm text-[var(--text-muted)]">{s.no_data_range}</div>
           ) : (
             <div className="space-y-3">
               {stats.topStaff.map((staff, i) => (
@@ -236,8 +410,8 @@ function TaskTab() {
             <div className="font-semibold text-sm text-amber-800 dark:text-amber-400 mb-1">{s.ai_insight}</div>
             <p className="text-sm text-amber-700 dark:text-amber-300">
               {lang === 'bm'
-                ? `Tugasan '${stats.insightTask}' telah diflag ${stats.insightCount}x. Pertimbangkan untuk menyemak atau agih semula kepada staf lain.`
-                : `Task '${stats.insightTask}' has been flagged ${stats.insightCount}x. Consider reviewing or reassigning it.`}
+                ? `Tugasan '${stats.insightTask}' diflag ${stats.insightCount}x dalam tempoh ini.`
+                : `Task '${stats.insightTask}' flagged ${stats.insightCount}x in this period.`}
             </p>
           </div>
         </div>
@@ -247,7 +421,7 @@ function TaskTab() {
           <div>
             <div className="font-semibold text-sm text-emerald-800 dark:text-emerald-400 mb-1">{s.ai_insight}</div>
             <p className="text-sm text-emerald-700 dark:text-emerald-300">
-              {lang === 'bm' ? 'Tiada tugasan yang diflag. Prestasi semua cawangan baik!' : 'No flagged tasks. All branches are performing well!'}
+              {lang === 'bm' ? 'Tiada tugasan diflag. Prestasi baik!' : 'No flagged tasks. Performance is good!'}
             </p>
           </div>
         </div>
@@ -257,7 +431,7 @@ function TaskTab() {
 }
 
 // ─── Tab: Maintenance ─────────────────────────────────────────
-function MaintenanceTab() {
+function MaintenanceTab({ range }: { range: DateRange }) {
   const { state } = useApp()
   const s = STRINGS[state.lang]
   const navigate = useNavigate()
@@ -274,11 +448,12 @@ function MaintenanceTab() {
   }, [])
 
   const stats = useMemo(() => {
-    const total      = reports.length
-    const open       = reports.filter(r => r.status === 'open')
-    const inProgress = reports.filter(r => r.status === 'in_progress')
-    const resolved   = reports.filter(r => r.status === 'resolved')
-    const urgent     = reports.filter(r => (r.priority === 'critical' || r.priority === 'high') && r.status !== 'resolved')
+    const inRangeReports = reports.filter(r => inRange(r.reportedAt, range))
+    const total      = inRangeReports.length
+    const open       = inRangeReports.filter(r => r.status === 'open')
+    const inProgress = inRangeReports.filter(r => r.status === 'in_progress')
+    const resolved   = inRangeReports.filter(r => r.status === 'resolved')
+    const urgent     = inRangeReports.filter(r => (r.priority === 'critical' || r.priority === 'high') && r.status !== 'resolved')
     const resolvedMonth = resolved.filter(r => r.resolvedAt && isSameMonth(r.resolvedAt))
     const resTimes   = resolved.filter(r => r.resolvedAt).map(r => daysBetween(r.reportedAt, r.resolvedAt!))
     const avgResolve = resTimes.length ? (resTimes.reduce((a, b) => a + b, 0) / resTimes.length).toFixed(1) : null
@@ -296,8 +471,8 @@ function MaintenanceTab() {
     }
     const categoryData = catKeys.map(k => ({
       name: `${CAT_ICON[k]} ${catLabels[k]}`,
-      open: reports.filter(r => r.category === k && r.status !== 'resolved').length,
-      resolved: reports.filter(r => r.category === k && r.status === 'resolved').length,
+      open: inRangeReports.filter(r => r.category === k && r.status !== 'resolved').length,
+      resolved: inRangeReports.filter(r => r.category === k && r.status === 'resolved').length,
     })).filter(d => d.open + d.resolved > 0)
 
     const priorityKeys: MaintenancePriority[] = ['critical', 'high', 'medium', 'low']
@@ -307,12 +482,12 @@ function MaintenanceTab() {
     }
     const priorityData = priorityKeys.map(k => ({
       name: priorityLabels[k],
-      value: reports.filter(r => r.priority === k).length,
+      value: inRangeReports.filter(r => r.priority === k).length,
       fill: PRIORITY_COLOR[k],
     })).filter(d => d.value > 0)
 
     const branchMap = new Map<string, { open: number; inProgress: number; resolved: number; critical: number }>()
-    for (const r of reports) {
+    for (const r of inRangeReports) {
       const b = branchMap.get(r.branch) ?? { open: 0, inProgress: 0, resolved: 0, critical: 0 }
       if (r.status === 'open')        b.open++
       if (r.status === 'in_progress') b.inProgress++
@@ -324,11 +499,16 @@ function MaintenanceTab() {
       .map(([name, b]) => ({ name, ...b }))
       .sort((a, b) => (b.critical - a.critical) || (b.open - a.open))
 
-    const dayKeys = state.lang === 'bm' ? DAY_KEYS_BM : DAY_KEYS_EN
-    const trend = Array.from({ length: 14 }, (_, i) => {
-      const d = new Date(TODAY); d.setDate(d.getDate() - (13 - i))
-      const count = reports.filter(r => isSameDay(r.reportedAt, d)).length
-      return { day: dayKeys[d.getDay()], count, isToday: i === 13 }
+    const buckets = bucketByDay(range, state.lang)
+    const trend = buckets.map(bk => {
+      const bkEnd = (bk as { endDate?: Date }).endDate ?? bk.date
+      const start = startOfDay(bk.date).getTime()
+      const end = endOfDay(bkEnd).getTime()
+      const count = inRangeReports.filter(r => {
+        const t = r.reportedAt.getTime()
+        return t >= start && t <= end
+      }).length
+      return { day: bk.label, count, isToday: bk.isToday }
     })
 
     const urgentList = urgent
@@ -336,7 +516,7 @@ function MaintenanceTab() {
       .slice(0, 8)
 
     return { total, urgentCount: urgent.length, inProgressCount: inProgress.length, resolvedMonthCount: resolvedMonth.length, avgResolve, statusData, categoryData, priorityData, branches, trend, urgentList }
-  }, [reports, state.lang, s])
+  }, [reports, state.lang, s, range])
 
   if (loading) {
     return <div className="text-center py-20 text-[var(--text-muted)] text-sm">{s.loading}</div>
@@ -345,7 +525,7 @@ function MaintenanceTab() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <p className="text-sm text-[var(--text-muted)]">{stats.total} {state.lang === 'bm' ? 'laporan keseluruhan' : 'total reports'}</p>
+        <p className="text-sm text-[var(--text-muted)]">{stats.total} {state.lang === 'bm' ? 'laporan' : 'reports'} {s.in_range}</p>
         <button onClick={() => navigate('/maintenance')} className="text-sm text-brand-600 hover:underline">
           → {s.maintenance_report}
         </button>
@@ -353,10 +533,10 @@ function MaintenanceTab() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: s.maint_dash_total,          value: stats.total,               icon: '🔧', color: '#3b82f6', bg: 'bg-blue-50 dark:bg-blue-900/20' },
-          { label: s.maint_dash_urgent,          value: stats.urgentCount,         icon: '🚨', color: '#ef4444', bg: 'bg-red-50 dark:bg-red-900/20' },
-          { label: s.maint_dash_inprog,          value: stats.inProgressCount,     icon: '🔄', color: '#f59e0b', bg: 'bg-amber-50 dark:bg-amber-900/20' },
-          { label: s.maint_dash_resolved_month,  value: stats.resolvedMonthCount,  icon: '✅', color: '#10b981', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
+          { label: s.maint_dash_total,         value: stats.total,              icon: '🔧', color: '#3b82f6', bg: 'bg-blue-50 dark:bg-blue-900/20' },
+          { label: s.maint_dash_urgent,         value: stats.urgentCount,        icon: '🚨', color: '#ef4444', bg: 'bg-red-50 dark:bg-red-900/20' },
+          { label: s.maint_dash_inprog,         value: stats.inProgressCount,    icon: '🔄', color: '#f59e0b', bg: 'bg-amber-50 dark:bg-amber-900/20' },
+          { label: s.maint_dash_resolved_month, value: stats.resolvedMonthCount, icon: '✅', color: '#10b981', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
         ].map(k => (
           <div key={k.label} className={`${k.bg} rounded-xl p-3 sm:p-4 border border-[var(--border)]`}>
             <div className="text-xl sm:text-2xl mb-1">{k.icon}</div>
@@ -374,25 +554,29 @@ function MaintenanceTab() {
 
       <div className="grid md:grid-cols-3 gap-4">
         <Card className="md:col-span-2">
-          <h3 className="font-bold text-sm text-[var(--text)] mb-3">{s.maint_dash_trend}</h3>
-          <div className="h-36 sm:h-44">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats.trend} barSize={10} margin={{ top: 4, right: 4, bottom: 0, left: -24 }}>
-                <XAxis dataKey="day" tick={{ fontSize: 9, fill: 'var(--ink-500)' }} axisLine={false} tickLine={false} interval={2} />
-                <YAxis tick={{ fontSize: 9, fill: 'var(--ink-400)' }} axisLine={false} tickLine={false} allowDecimals={false} />
-                <Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} cursor={{ fill: 'rgba(59,130,246,0.07)' }} />
-                <Bar dataKey="count" radius={[3, 3, 0, 0]}>
-                  {stats.trend.map((e, i) => <Cell key={i} fill={e.isToday ? '#2563eb' : '#93c5fd'} />)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <h3 className="font-bold text-sm text-[var(--text)] mb-3">{s.daily_trend}</h3>
+          {stats.total === 0 ? (
+            <div className="h-36 flex items-center justify-center text-sm text-[var(--text-muted)]">{s.no_data_range}</div>
+          ) : (
+            <div className="h-36 sm:h-44">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stats.trend} barSize={Math.max(6, Math.min(20, Math.floor(280 / stats.trend.length)))} margin={{ top: 4, right: 4, bottom: 0, left: -24 }}>
+                  <XAxis dataKey="day" tick={{ fontSize: 9, fill: 'var(--ink-500)' }} axisLine={false} tickLine={false} interval={stats.trend.length > 14 ? Math.floor(stats.trend.length / 7) : 0} />
+                  <YAxis tick={{ fontSize: 9, fill: 'var(--ink-400)' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} cursor={{ fill: 'rgba(59,130,246,0.07)' }} />
+                  <Bar dataKey="count" radius={[3, 3, 0, 0]}>
+                    {stats.trend.map((e, i) => <Cell key={i} fill={e.isToday ? '#2563eb' : '#93c5fd'} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </Card>
 
         <Card>
           <h3 className="font-bold text-sm text-[var(--text)] mb-3">{s.maint_priority}</h3>
           {stats.priorityData.length === 0 ? (
-            <div className="h-36 flex items-center justify-center text-sm text-[var(--text-muted)]">{s.no_maintenance}</div>
+            <div className="h-36 flex items-center justify-center text-sm text-[var(--text-muted)]">{s.no_data_range}</div>
           ) : (
             <div className="flex items-center gap-3 md:flex-col md:items-stretch">
               <div className="h-24 w-24 flex-shrink-0 md:h-28 md:w-full">
@@ -425,7 +609,7 @@ function MaintenanceTab() {
         <Card>
           <h3 className="font-bold text-sm text-[var(--text)] mb-3">{s.maint_dash_by_category}</h3>
           {stats.categoryData.length === 0 ? (
-            <div className="h-36 flex items-center justify-center text-sm text-[var(--text-muted)]">{s.no_maintenance}</div>
+            <div className="h-36 flex items-center justify-center text-sm text-[var(--text-muted)]">{s.no_data_range}</div>
           ) : (
             <div className="h-40 sm:h-44">
               <ResponsiveContainer width="100%" height="100%">
@@ -444,7 +628,7 @@ function MaintenanceTab() {
         <Card>
           <h3 className="font-bold text-sm text-[var(--text)] mb-3">{s.maint_dash_by_status}</h3>
           {stats.statusData.length === 0 ? (
-            <div className="h-44 flex items-center justify-center text-sm text-[var(--text-muted)]">{s.no_maintenance}</div>
+            <div className="h-44 flex items-center justify-center text-sm text-[var(--text-muted)]">{s.no_data_range}</div>
           ) : (
             <>
               <div className="h-28 sm:h-36">
@@ -478,7 +662,7 @@ function MaintenanceTab() {
             <h3 className="font-bold text-sm text-[var(--text)]">{s.maint_dash_by_branch}</h3>
           </div>
           {stats.branches.length === 0 ? (
-            <div className="p-8 text-center text-sm text-[var(--text-muted)]">{s.no_maintenance}</div>
+            <div className="p-8 text-center text-sm text-[var(--text-muted)]">{s.no_data_range}</div>
           ) : (
             <div className="divide-y divide-[var(--border)]">
               {stats.branches.map(b => (
@@ -558,21 +742,27 @@ export default function DashboardPage() {
   const { state } = useApp()
   const lang = state.lang
   const [tab, setTab] = useState<Tab>('tasks')
+  const [range, setRange] = useState<DateRange>(() => buildRange('7d'))
 
   const tabs: { id: Tab; label: string; icon: string }[] = [
-    { id: 'tasks',       label: lang === 'bm' ? 'Tugasan' : 'Tasks',       icon: '📊' },
+    { id: 'tasks',       label: lang === 'bm' ? 'Tugasan' : 'Tasks',          icon: '📊' },
     { id: 'maintenance', label: lang === 'bm' ? 'Selenggara' : 'Maintenance', icon: '🔧' },
   ]
 
   return (
     <div className="space-y-5 max-w-5xl">
       {/* Header */}
-      <div>
-        <h2 className="text-xl font-bold text-[var(--text)]">
-          {lang === 'bm' ? '📊 Dashboard' : '📊 Dashboard'}
-        </h2>
-        <p className="text-sm text-[var(--text-muted)] mt-0.5">{state.user?.branch}</p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h2 className="text-xl font-bold text-[var(--text)]">📊 Dashboard</h2>
+          <p className="text-sm text-[var(--text-muted)] mt-0.5">
+            {state.user?.branch} · <span className="text-brand-600 font-medium">{fmtRange(range, lang)}</span>
+          </p>
+        </div>
       </div>
+
+      {/* Date range picker */}
+      <DateRangePicker range={range} onChange={setRange} />
 
       {/* Tab switcher */}
       <div className="flex gap-1 p-1 bg-[var(--surface-2)] rounded-xl">
@@ -593,8 +783,8 @@ export default function DashboardPage() {
       </div>
 
       {/* Tab content */}
-      {tab === 'tasks'       && <TaskTab />}
-      {tab === 'maintenance' && <MaintenanceTab />}
+      {tab === 'tasks'       && <TaskTab range={range} />}
+      {tab === 'maintenance' && <MaintenanceTab range={range} />}
     </div>
   )
 }
