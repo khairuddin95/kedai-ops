@@ -68,7 +68,7 @@ export default function BranchPage() {
       } else {
         newBranch = { id: `mock_${Date.now()}`, ...payload }
       }
-      if (!newBranch) { setError('Gagal menyimpan. Cuba lagi.'); setSaving(false); return }
+      if (!newBranch) { setError(s.save_failed); setSaving(false); return }
       setBranches(prev => [...prev, newBranch!].sort((a, b) => a.name.localeCompare(b.name)))
       setSuccess(s.branch_added)
     }

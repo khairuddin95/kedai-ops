@@ -85,7 +85,7 @@ export default function StaffPage() {
 
     if (!form.name.trim() || !form.branch.trim()) { setError(s.fill_all); return }
     if (!/^[\p{L}\s'.,-]{2,60}$/u.test(form.name.trim())) {
-      setError('Nama tidak sah. Guna huruf sahaja (2–60 aksara).'); return
+      setError(s.name_invalid); return
     }
 
     if (!isEdit) {
@@ -115,7 +115,7 @@ export default function StaffPage() {
       } else {
         newUser = { id: `mock_${Date.now()}`, name: form.name.trim(), role: form.role, branch: form.branch, avatar: form.avatar, username: form.username.toLowerCase() }
       }
-      if (!newUser) { setError('Gagal mendaftar. Cuba lagi.'); setSaving(false); return }
+      if (!newUser) { setError(s.save_failed); setSaving(false); return }
       setUsers(prev => [...prev, newUser!].sort((a, b) => a.name.localeCompare(b.name)))
       setSuccess(s.staff_added)
     }

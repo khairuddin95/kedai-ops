@@ -107,7 +107,7 @@ export default function AssetPage() {
   const handleSave = async () => {
     setError('')
     if (!form.name.trim() || !form.branch.trim()) { setError(s.fill_all); return }
-    if (form.quantity < 1) { setError('Bilangan mestilah sekurang-kurangnya 1.'); return }
+    if (form.quantity < 1) { setError(s.qty_min); return }
     setSaving(true)
     const payload = {
       name: form.name.trim(), category: form.category, quantity: form.quantity,
@@ -127,7 +127,7 @@ export default function AssetPage() {
       } else {
         newAsset = { id: `mock_${Date.now()}`, ...payload }
       }
-      if (!newAsset) { setError('Gagal menyimpan. Cuba lagi.'); setSaving(false); return }
+      if (!newAsset) { setError(s.save_failed); setSaving(false); return }
       setAssets(prev => [...prev, newAsset!].sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name)))
       setSuccess(s.asset_added)
     }

@@ -134,7 +134,7 @@ export default function LoginPage() {
       user = { id: foundUser!.id, name: foundUser!.name, role: foundUser!.role as User['role'], branch: foundUser!.branch, avatar: foundUser!.avatar, username: foundUser!.username }
     }
     setLoading(false)
-    if (!user) { setError('Gagal menyimpan PIN. Cuba lagi.'); setPin(''); setConfirmPin(''); setPinSubStep('enter'); return }
+    if (!user) { setError(s.pin_save_failed); setPin(''); setConfirmPin(''); setPinSubStep('enter'); return }
     setVerified(user)
     await autoLogin(user)
   }
