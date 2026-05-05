@@ -1,8 +1,65 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useApp } from '../../context/AppContext'
 import { STRINGS } from '../../utils/i18n'
 import Avatar from '../ui/Avatar'
+import {
+  notifSupported, getPermission, requestPermission,
+  getEnabled, setEnabled, sendNotification, type NotifPermission,
+} from '../../lib/notifications'
+
+function NotifToggle() {
+  const { state } = useApp()
+  const s = STRINGS[state.lang]
+  const [permission, setPermission] = useState<NotifPermission>(() => getPermission())
+  const [on, setOn] = useState<boolean>(() => getEnabled())
+
+  useEffect(() => {
+    const sync = () => { setPermission(getPermission()); setOn(getEnabled()) }
+    window.addEventListener('focus', sync)
+    return () => window.removeEventListener('focus', sync)
+  }, [])
+
+  if (!notifSupported()) return null
+
+  const handleClick = async () => {
+    if (permission === 'denied') {
+      // Browser-level block — toggling won't help
+      return
+    }
+    if (permission === 'default') {
+      const result = await requestPermission()
+      setPermission(result)
+      if (result === 'granted') {
+        setEnabled(true); setOn(true)
+        sendNotification(s.notif_test_title, s.notif_test_body, 'test_enable')
+      }
+      return
+    }
+    // permission === 'granted' → toggle the in-app preference
+    const next = !on
+    setEnabled(next); setOn(next)
+    if (next) sendNotification(s.notif_test_title, s.notif_test_body, 'test_toggle')
+  }
+
+  const label = permission === 'denied'
+    ? `🔕 ${s.notif_blocked.length > 30 ? s.notif_blocked.slice(0, 28) + '…' : s.notif_blocked}`
+    : on
+      ? `🔔 ${s.notif_enabled}`
+      : `🔕 ${s.notif_disabled}`
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={permission === 'denied'}
+      title={permission === 'denied' ? s.notif_blocked : ''}
+      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-[var(--text-soft)] hover:bg-[var(--surface-2)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      <span>{on && permission === 'granted' ? '🔔' : '🔕'}</span>
+      <span className="truncate text-left">{label.replace(/^[🔔🔕]\s*/, '')}</span>
+    </button>
+  )
+}
 
 type NavItem = { to: string; icon: string; label: string }
 
@@ -108,6 +165,7 @@ export default function AppShell() {
             <span>🌐</span>
             <span>{lang === 'bm' ? 'English' : 'Bahasa'}</span>
           </button>
+          <NotifToggle />
         </div>
 
         {/* User */}
@@ -225,8 +283,13 @@ export default function AppShell() {
               </div>
             )}
 
+            {/* Notification toggle row */}
+            <div className={`px-3 ${moreItems.length > 0 ? 'pt-1 border-t border-[var(--border)] mt-1' : 'pt-3'}`}>
+              <NotifToggle />
+            </div>
+
             {/* Settings row */}
-            <div className={`px-3 pb-3 flex gap-2 ${moreItems.length > 0 ? 'pt-1 border-t border-[var(--border)] mt-1' : 'pt-3'}`}>
+            <div className="px-3 pb-3 pt-1 flex gap-2">
               <button
                 onClick={() => { dispatch({ type: 'TOGGLE_DARK' }); setDrawerOpen(false) }}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-[var(--text-soft)] bg-[var(--surface-2)] hover:bg-[var(--surface-3,#e5e7eb)] transition-colors"

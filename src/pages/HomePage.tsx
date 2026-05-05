@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
 import { STRINGS } from '../utils/i18n'
@@ -6,6 +7,11 @@ import ProgressBar from '../components/ui/ProgressBar'
 import { TaskStatusBadge } from '../components/ui/Badge'
 import GroupIcon from '../components/ui/GroupIcon'
 import { loadTodayReviews, getReviewTarget } from './GoogleReviewPage'
+import {
+  notifSupported, getPermission, requestPermission,
+  getEnabled, setEnabled, useTaskReminders, sendNotification,
+  type NotifPermission,
+} from '../lib/notifications'
 import type { TaskStatus } from '../types'
 
 function getGreeting(name: string, lang: 'bm' | 'en') {
@@ -34,6 +40,39 @@ export default function HomePage() {
     (g.frequency !== 'weekly' || isSunday) &&
     (!userDept || g.department === 'all' || g.department === userDept)
   )
+
+  // ── Notifications ──────────────────────────────────────────
+  const [permission, setPermission] = useState<NotifPermission>(() => getPermission())
+  const [notifsOn, setNotifsOn]     = useState<boolean>(() => getEnabled())
+  const [notifToast, setNotifToast] = useState('')
+
+  // Re-sync if browser permission changes from another tab/settings
+  useEffect(() => {
+    const sync = () => { setPermission(getPermission()); setNotifsOn(getEnabled()) }
+    window.addEventListener('focus', sync)
+    return () => window.removeEventListener('focus', sync)
+  }, [])
+
+  const overdue = useTaskReminders({
+    taskGroups: TASK_GROUPS,
+    taskStates: ts,
+    enabled: notifsOn,
+    lang,
+  })
+
+  const handleEnableNotifs = async () => {
+    const result = await requestPermission()
+    setPermission(result)
+    if (result === 'granted') {
+      setEnabled(true); setNotifsOn(true)
+      sendNotification(s.notif_test_title, s.notif_test_body, 'test_enable')
+      setNotifToast(s.notif_enabled)
+      setTimeout(() => setNotifToast(''), 2500)
+    } else if (result === 'denied') {
+      setNotifToast(s.notif_blocked)
+      setTimeout(() => setNotifToast(''), 4000)
+    }
+  }
   const ALL_TASKS = TASK_GROUPS.flatMap(g =>
     g.tasks.map(t => ({ ...t, groupId: g.id, groupTitle: g.title, groupColor: g.color, groupIcon: g.icon }))
   )
@@ -59,6 +98,58 @@ export default function HomePage() {
 
   return (
     <div className="space-y-5">
+      {/* Notification toast */}
+      {notifToast && (
+        <div className={`text-sm rounded-lg px-4 py-3 border ${
+          permission === 'granted'
+            ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300'
+            : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
+        }`}>
+          {permission === 'granted' ? '✅ ' : '⚠️ '}{notifToast}
+        </div>
+      )}
+
+      {/* Permission prompt — only shown when supported and not yet decided */}
+      {notifSupported() && permission === 'default' && (
+        <div className="flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl">
+          <span className="text-2xl flex-shrink-0">🔔</span>
+          <div className="flex-1 min-w-0">
+            <div className="font-semibold text-sm text-blue-800 dark:text-blue-300">{s.notif_enable}</div>
+            <p className="text-xs text-blue-700 dark:text-blue-400 mt-0.5">{s.notif_enable_desc}</p>
+          </div>
+          <button
+            onClick={handleEnableNotifs}
+            className="text-xs font-semibold px-3 py-1.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white transition-colors flex-shrink-0"
+          >
+            {s.notif_enable}
+          </button>
+        </div>
+      )}
+
+      {/* Overdue task banner — works regardless of browser permission */}
+      {overdue.length > 0 && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-2.5 border-b border-amber-200 dark:border-amber-800">
+            <span className="text-lg">⏰</span>
+            <span className="font-semibold text-sm text-amber-800 dark:text-amber-300">
+              {s.overdue_tasks} ({overdue.length})
+            </span>
+          </div>
+          <div className="divide-y divide-amber-200 dark:divide-amber-800">
+            {overdue.map(g => (
+              <div key={g.id} className="px-4 py-2.5 flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-[var(--text)]">{g.title}</div>
+                  <div className="text-xs text-[var(--text-muted)]">
+                    {g.time} · {g.pendingCount} {s.pending_tasks} · <span className="text-red-500 font-semibold">{g.minutesLate} {s.minutes_late}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Greeting */}
       <Card>
         <div className="flex items-start justify-between gap-4">
