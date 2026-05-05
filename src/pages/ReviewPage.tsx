@@ -17,9 +17,11 @@ export default function ReviewPage() {
   const [tab, setTab] = useState<Tab>('pending')
   const [selected, setSelected] = useState<Submission | null>(null)
   const [comment, setComment] = useState('')
+  const [deciding, setDeciding] = useState<SubmissionStatus | null>(null)
+  const [errorMsg, setErrorMsg] = useState('')
 
-  const subs = state.submissions.filter(s => s.status === tab)
-  const pending = state.submissions.filter(s => s.status === 'pending').length
+  const visibleSubs = state.submissions.filter(sub => sub.status === tab)
+  const pending = state.submissions.filter(sub => sub.status === 'pending').length
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'pending',  label: `${s.pending} (${pending})` },
@@ -28,10 +30,18 @@ export default function ReviewPage() {
   ]
 
   const decide = async (status: SubmissionStatus) => {
-    if (!selected) return
-    await reviewSubmission(selected.id, status as 'approved' | 'rejected', comment || undefined)
+    if (!selected || deciding) return
+    setErrorMsg('')
+    setDeciding(status)
+    const ok = await reviewSubmission(selected.id, status as 'approved' | 'rejected', comment || undefined)
+    setDeciding(null)
+    if (!ok) {
+      setErrorMsg(s.update_failed)
+      setTimeout(() => setErrorMsg(''), 3000)
+      return
+    }
     setComment('')
-    const next = subs.find(s => s.id !== selected.id)
+    const next = visibleSubs.find(sub => sub.id !== selected.id)
     setSelected(next ?? null)
   }
 
@@ -70,13 +80,13 @@ export default function ReviewPage() {
 
           {/* List */}
           <div className="flex-1 overflow-y-auto divide-y divide-[var(--border)]">
-            {subs.length === 0 && (
+            {visibleSubs.length === 0 && (
               <div className="py-12 text-center text-[var(--text-muted)] text-sm">
                 <div className="text-4xl mb-2">📭</div>
                 {s.no_submissions}
               </div>
             )}
-            {subs.map(sub => (
+            {visibleSubs.map(sub => (
               <button
                 key={sub.id}
                 onClick={() => { setSelected(sub); setComment('') }}
@@ -190,13 +200,30 @@ export default function ReviewPage() {
                 )}
               </div>
 
+              {errorMsg && (
+                <div className="px-4 pt-2">
+                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm rounded-lg px-3 py-2">
+                    ⚠️ {errorMsg}
+                  </div>
+                </div>
+              )}
               {/* Action buttons */}
               {selected.status === 'pending' && (
                 <div className="p-4 border-t border-[var(--border)] flex gap-3">
-                  <Button variant="danger" className="flex-1" onClick={() => decide('rejected')}>
+                  <Button
+                    variant="danger" className="flex-1"
+                    loading={deciding === 'rejected'}
+                    disabled={deciding !== null}
+                    onClick={() => decide('rejected')}
+                  >
                     ✗ {s.reject}
                   </Button>
-                  <Button variant="success" className="flex-1" onClick={() => decide('approved')}>
+                  <Button
+                    variant="success" className="flex-1"
+                    loading={deciding === 'approved'}
+                    disabled={deciding !== null}
+                    onClick={() => decide('approved')}
+                  >
                     ✓ {s.approve}
                   </Button>
                 </div>

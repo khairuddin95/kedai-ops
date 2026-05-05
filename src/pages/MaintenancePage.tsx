@@ -41,9 +41,20 @@ export default function MaintenancePage() {
   const [updating, setUpdating]   = useState<string | null>(null)
   const [lightbox, setLightbox]   = useState<string | null>(null)
   const [toast, setToast]         = useState('')
+  const [errorToast, setErrorToast] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const formPhotosRef = useRef(formPhotos)
+  formPhotosRef.current = formPhotos
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000) }
+  const showError = (msg: string) => { setErrorToast(msg); setTimeout(() => setErrorToast(''), 4000) }
+
+  // Revoke any leftover preview URLs on unmount
+  useEffect(() => {
+    return () => {
+      formPhotosRef.current.forEach(p => URL.revokeObjectURL(p.preview))
+    }
+  }, [])
 
   useEffect(() => {
     ;(async () => {
@@ -93,13 +104,16 @@ export default function MaintenancePage() {
         reportedByAvatar: user.avatar, branch: user.branch,
         status: 'open', photos: [],
       })
-      if (!draft) { setSaving(false); setUploading(false); return }
+      if (!draft) { setSaving(false); setUploading(false); showError(s.submit_failed); return }
 
       if (formPhotos.length > 0) {
         const uploads = await Promise.all(
           formPhotos.map(p => db.uploadMaintenancePhoto(p.file, draft.id))
         )
         photoUrls = uploads.filter(Boolean) as string[]
+        if (photoUrls.length < formPhotos.length) {
+          showError(s.photo_upload_partial)
+        }
         if (photoUrls.length > 0) {
           await db.updateMaintenanceReport(draft.id, { photos: photoUrls })
         }
@@ -140,13 +154,18 @@ export default function MaintenancePage() {
         : x
       ))
       showToast(s.maint_updated)
+    } else {
+      showError(s.update_failed)
     }
     setUpdating(null)
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Padam laporan ini?')) return
-    if (supabaseConfigured) await db.deleteMaintenanceReport(id)
+    if (!confirm(s.confirm_del_report)) return
+    if (supabaseConfigured) {
+      const ok = await db.deleteMaintenanceReport(id)
+      if (!ok) { showError(s.update_failed); return }
+    }
     setReports(prev => prev.filter(r => r.id !== id))
   }
 
@@ -159,7 +178,7 @@ export default function MaintenancePage() {
   }
 
   const filterPills: { key: MaintenanceStatus | 'all'; label: string }[] = [
-    { key: 'all',         label: `Semua (${counts.all})` },
+    { key: 'all',         label: `${s.all} (${counts.all})` },
     { key: 'open',        label: `${s.status_open} (${counts.open})` },
     { key: 'in_progress', label: `${s.status_in_progress} (${counts.in_progress})` },
     { key: 'resolved',    label: `${s.status_resolved} (${counts.resolved})` },
@@ -171,7 +190,7 @@ export default function MaintenancePage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-[var(--text)]">{s.maintenance_report}</h2>
-          <p className="text-sm text-[var(--text-muted)] mt-0.5">{reports.length} laporan</p>
+          <p className="text-sm text-[var(--text-muted)] mt-0.5">{reports.length} {s.report_count}</p>
         </div>
         {!showForm && (
           <Button onClick={() => { setShowForm(true); setForm({ ...blank }); setFormPhotos([]) }}>
@@ -184,6 +203,11 @@ export default function MaintenancePage() {
       {toast && (
         <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-sm rounded-lg px-4 py-3">
           ✅ {toast}
+        </div>
+      )}
+      {errorToast && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm rounded-lg px-4 py-3">
+          ⚠️ {errorToast}
         </div>
       )}
 
@@ -391,7 +415,7 @@ export default function MaintenancePage() {
                   {/* Resolved timestamp */}
                   {r.resolvedAt && (
                     <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                      ✅ Selesai pada {r.resolvedAt.toLocaleDateString(state.lang === 'bm' ? 'ms-MY' : 'en-MY', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      ✅ {s.resolved_on} {r.resolvedAt.toLocaleDateString(state.lang === 'bm' ? 'ms-MY' : 'en-MY', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                     </p>
                   )}
 
@@ -433,14 +457,14 @@ export default function MaintenancePage() {
                             loading={updating === r.id}
                             onClick={() => handleUpdateStatus(r, 'open')}
                           >
-                            🔁 Buka Semula
+                            🔁 {s.maint_reopen}
                           </Button>
                         )}
                         <button
                           onClick={() => handleDelete(r.id)}
                           className="ml-auto text-xs text-[var(--text-muted)] hover:text-red-500 transition-colors px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
                         >
-                          🗑 Padam
+                          🗑 {s.delete}
                         </button>
                       </div>
                     </div>

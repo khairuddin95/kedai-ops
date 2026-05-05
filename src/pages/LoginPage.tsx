@@ -158,30 +158,33 @@ export default function LoginPage() {
     await autoLogin(user)
   }
 
-  // ── Try schedule → defaultShift → manual picker ───────────
+  // ── Try schedule → defaultShift → manual/time-based fallback ───
   const autoLogin = async (user: User) => {
-    // Owner/supervisor: auto-detect by time, skip shift picker
-    if (user.role === 'owner' || user.role === 'supervisor') {
-      const shiftId = new Date().getHours() < 15 ? 'morning' : 'evening'
-      const shift = SHIFTS.find(s => s.id === shiftId)!
-      dispatch({ type: 'LOGIN', user, shift })
-      navigate('/dashboard')
-      return
-    }
-    // Staff: 1. Check weekly schedule for today
+    const isManager = user.role === 'owner' || user.role === 'supervisor'
+    const home = isManager ? '/dashboard' : '/'
+
+    // 1. DB schedule wins for ALL roles — managers may also have a schedule
     if (supabaseConfigured) {
       const todayShiftId = await db.getUserTodayShift(user.id)
       if (todayShiftId) {
         const shift = SHIFTS.find(s => s.id === todayShiftId)
-        if (shift) { dispatch({ type: 'LOGIN', user, shift }); navigate('/'); return }
+        if (shift) { dispatch({ type: 'LOGIN', user, shift }); navigate(home); return }
       }
     }
-    // 2. Fall back to admin-assigned default shift
+    // 2. Admin-assigned default shift
     if (user.defaultShift) {
       const shift = SHIFTS.find(s => s.id === user.defaultShift)
-      if (shift) { dispatch({ type: 'LOGIN', user, shift }); navigate('/'); return }
+      if (shift) { dispatch({ type: 'LOGIN', user, shift }); navigate(home); return }
     }
-    // 3. Manual selection
+    // 3a. Managers don't use the manual picker — fall back to time-of-day
+    if (isManager) {
+      const shiftId = new Date().getHours() < 15 ? 'morning' : 'evening'
+      const shift = SHIFTS.find(s => s.id === shiftId)!
+      dispatch({ type: 'LOGIN', user, shift })
+      navigate(home)
+      return
+    }
+    // 3b. Staff sees manual picker
     setStep(3)
   }
 

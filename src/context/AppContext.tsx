@@ -29,6 +29,7 @@ type Action =
   | { type: 'SET_TASK_STATE';  taskId: string; state: Partial<TaskState> }
   | { type: 'SET_SUBMISSIONS'; subs: Submission[] }
   | { type: 'ADD_SUBMISSION';  sub: Submission }
+  | { type: 'REMOVE_SUBMISSION'; id: string }
   | { type: 'UPDATE_SUBMISSION'; id: string; updates: Partial<Submission> }
   | { type: 'SET_TASK_GROUPS'; groups: TaskGroup[] }
   | { type: 'ADD_TASK_GROUP';    group: TaskGroup }
@@ -61,6 +62,8 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, submissions: action.subs }
     case 'ADD_SUBMISSION':
       return { ...state, submissions: [action.sub, ...state.submissions] }
+    case 'REMOVE_SUBMISSION':
+      return { ...state, submissions: state.submissions.filter(s => s.id !== action.id) }
     case 'UPDATE_SUBMISSION':
       return { ...state, submissions: state.submissions.map(s => s.id === action.id ? { ...s, ...action.updates } : s) }
     case 'SET_TASK_GROUPS':
@@ -138,10 +141,10 @@ interface CtxValue {
   dispatch: React.Dispatch<Action>
   /** Login via username + password — checks DB first, falls back to mock */
   loginWithCredentials: (username: string, password: string, shift: Shift) => Promise<User | null>
-  /** Submit a task — persists to DB when configured */
-  submitTask:  (sub: Submission) => Promise<void>
-  /** Approve/reject a submission */
-  reviewSubmission: (id: string, status: 'approved' | 'rejected', comment?: string) => Promise<void>
+  /** Submit a task — persists to DB when configured. Returns true on success. */
+  submitTask:  (sub: Submission) => Promise<boolean>
+  /** Approve/reject a submission. Returns true on success. */
+  reviewSubmission: (id: string, status: 'approved' | 'rejected', comment?: string) => Promise<boolean>
   /** Persist task state draft */
   saveTaskState: (ts: TaskState) => Promise<void>
   /** Add a new task group */
@@ -191,7 +194,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (lastReset && lastReset !== today) {
       dispatch({ type: 'RESET_DAILY' })
       if (supabaseConfigured && state.user) {
-        db.clearUserTaskStates(state.user.id).catch(() => {})
+        // Only mark today as reset AFTER the DB clear succeeds; otherwise we'd
+        // think reset was done but stale rows would still be in the DB.
+        db.clearUserTaskStates(state.user.id).then(ok => {
+          if (ok) {
+            localStorage.setItem('last_daily_reset', today)
+          } else {
+            console.error('[AppContext] daily reset DB clear failed; will retry on next mount')
+          }
+        })
+        return
       }
     }
     localStorage.setItem('last_daily_reset', today)
@@ -230,28 +242,41 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return user
   }, [])
 
-  const submitTask = useCallback(async (sub: Submission) => {
-    // Optimistic update
+  const submitTask = useCallback(async (sub: Submission): Promise<boolean> => {
+    // Optimistic add for instant UI feedback
     dispatch({ type: 'ADD_SUBMISSION', sub })
-    if (supabaseConfigured && state.user) {
-      const saved = await db.insertSubmission(sub, state.user.id)
-      if (saved && saved.id !== sub.id) {
-        // Replace optimistic record with DB-assigned id
-        dispatch({ type: 'UPDATE_SUBMISSION', id: sub.id, updates: { id: saved.id } })
-      }
+    if (!supabaseConfigured || !state.user) return true
+
+    const saved = await db.insertSubmission(sub, state.user.id)
+    if (!saved) {
+      // DB rejected — roll back the optimistic record so we don't leave a
+      // ghost submission with a fake ID that can never be reviewed.
+      dispatch({ type: 'REMOVE_SUBMISSION', id: sub.id })
+      return false
     }
+    if (saved.id !== sub.id) {
+      dispatch({ type: 'UPDATE_SUBMISSION', id: sub.id, updates: { id: saved.id } })
+    }
+    return true
   }, [state.user])
 
   const reviewSubmission = useCallback(async (
     id: string,
     status: 'approved' | 'rejected',
     comment?: string
-  ) => {
+  ): Promise<boolean> => {
+    // Snapshot the previous state so we can roll back if the DB call fails
+    const prev = state.submissions.find(s => s.id === id)
     dispatch({ type: 'UPDATE_SUBMISSION', id, updates: { status, supervisorComment: comment } })
-    if (supabaseConfigured) {
-      await db.updateSubmissionStatus(id, status, comment)
+    if (!supabaseConfigured) return true
+
+    const ok = await db.updateSubmissionStatus(id, status, comment)
+    if (!ok && prev) {
+      dispatch({ type: 'UPDATE_SUBMISSION', id, updates: { status: prev.status, supervisorComment: prev.supervisorComment } })
+      return false
     }
-  }, [])
+    return ok
+  }, [state.submissions])
 
   const saveTaskState = useCallback(async (ts: TaskState) => {
     dispatch({ type: 'SET_TASK_STATE', taskId: ts.taskId, state: ts })

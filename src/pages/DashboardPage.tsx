@@ -108,6 +108,11 @@ function TaskTab() {
     return { total, approved, compRate, todayCount: todaySubs.length, avgRating, staffCount: staffSet.size, weekly, branches, topStaff, insightTask, insightCount }
   }, [subs, lang])
 
+  // All hooks above this line — safe to early-return now
+  if (!state.dbReady) {
+    return <div className="text-center py-20 text-[var(--text-muted)] text-sm">{s.loading}</div>
+  }
+
   const kpis = [
     { label: s.completion_rate, value: `${stats.compRate}%`,              icon: '📈', color: '#3b82f6', bg: 'bg-blue-50 dark:bg-blue-900/20' },
     { label: s.avg_rating,      value: `${stats.avgRating.toFixed(1)} ⭐`, icon: '⭐', color: '#f59e0b', bg: 'bg-amber-50 dark:bg-amber-900/20' },

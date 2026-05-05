@@ -104,6 +104,8 @@ export default function LoanPage() {
         returnedAt: returnedAt ?? x.returnedAt,
       } : x))
       showToast(s.loan_updated)
+    } else {
+      showToast(`⚠️ ${s.update_failed}`)
     }
     setUpdating(null)
   }

@@ -66,6 +66,8 @@ export default function SchedulePage() {
     })()
   }, [])
 
+  const [errorMsg, setErrorMsg] = useState('')
+
   const handleCell = async (user: User, dayOfWeek: number) => {
     const current = schedMap[user.id]?.[dayOfWeek] ?? null
     const next    = nextShift(current)
@@ -78,8 +80,18 @@ export default function SchedulePage() {
     }))
 
     setSaving(key)
-    await db.upsertSchedule({ userId: user.id, dayOfWeek, shiftId: next })
+    const ok = await db.upsertSchedule({ userId: user.id, dayOfWeek, shiftId: next })
     setSaving(null)
+
+    if (!ok) {
+      // Roll back so the UI matches what's actually in the DB
+      setSchedMap(prev => ({
+        ...prev,
+        [user.id]: { ...(prev[user.id] ?? {}), [dayOfWeek]: current },
+      }))
+      setErrorMsg(lang === 'bm' ? 'Gagal simpan jadual. Cuba lagi.' : 'Failed to save schedule. Try again.')
+      setTimeout(() => setErrorMsg(''), 3000)
+    }
   }
 
   const filteredUsers = users
@@ -117,6 +129,13 @@ export default function SchedulePage() {
           </select>
         )}
       </div>
+
+      {/* Error toast */}
+      {errorMsg && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm rounded-lg px-4 py-3">
+          ⚠️ {errorMsg}
+        </div>
+      )}
 
       {/* Department tabs */}
       <div className="flex gap-1 p-1 bg-[var(--surface-2)] rounded-xl">

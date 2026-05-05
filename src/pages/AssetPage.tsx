@@ -128,7 +128,8 @@ export default function AssetPage() {
         newAsset = { id: `mock_${Date.now()}`, ...payload }
       }
       if (!newAsset) { setError(s.save_failed); setSaving(false); return }
-      setAssets(prev => [...prev, newAsset!].sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name)))
+      const asset = newAsset
+      setAssets(prev => [...prev, asset].sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name)))
       setSuccess(s.asset_added)
     }
 

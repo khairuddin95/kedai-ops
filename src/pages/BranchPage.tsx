@@ -62,14 +62,13 @@ export default function BranchPage() {
       setBranches(prev => prev.map(b => b.id === editId ? { ...b, ...payload } : b))
       setSuccess(s.branch_saved)
     } else {
-      let newBranch: Branch | null = null
-      if (supabaseConfigured) {
-        newBranch = await db.insertBranch(payload)
-      } else {
-        newBranch = { id: `mock_${Date.now()}`, ...payload }
-      }
+      const newBranch: Branch | null = supabaseConfigured
+        ? await db.insertBranch(payload)
+        : { id: `mock_${Date.now()}`, ...payload }
       if (!newBranch) { setError(s.save_failed); setSaving(false); return }
-      setBranches(prev => [...prev, newBranch!].sort((a, b) => a.name.localeCompare(b.name)))
+      // Capture the narrowed value so we don't need a non-null assertion in the closure
+      const branch = newBranch
+      setBranches(prev => [...prev, branch].sort((a, b) => a.name.localeCompare(b.name)))
       setSuccess(s.branch_added)
     }
 

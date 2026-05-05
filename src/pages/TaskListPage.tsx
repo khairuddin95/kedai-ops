@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
 import { STRINGS } from '../utils/i18n'
@@ -19,13 +19,18 @@ export default function TaskListPage() {
   const shiftId  = state.shift?.id
   const userDept = state.user?.department
   const isSunday = new Date().getDay() === 0
-  const ALL_TASKS = state.taskGroups
-    .filter(g =>
-      (!g.shift || g.shift === 'both' || g.shift === shiftId) &&
-      (g.frequency !== 'weekly' || isSunday) &&
-      (!userDept || g.department === 'all' || g.department === userDept)
-    )
-    .flatMap(g => g.tasks.map(t => ({ ...t, groupId: g.id, groupTitle: g.title, groupColor: g.color, groupIcon: g.icon })))
+
+  // Memoize: avoid re-flattening every render and creating fresh task references
+  // that bust downstream child memoization
+  const ALL_TASKS = useMemo(() =>
+    state.taskGroups
+      .filter(g =>
+        (!g.shift || g.shift === 'both' || g.shift === shiftId) &&
+        (g.frequency !== 'weekly' || isSunday) &&
+        (!userDept || g.department === 'all' || g.department === userDept)
+      )
+      .flatMap(g => g.tasks.map(t => ({ ...t, groupId: g.id, groupTitle: g.title, groupColor: g.color, groupIcon: g.icon })))
+  , [state.taskGroups, shiftId, userDept, isSunday])
 
   const [filter, setFilter] = useState<Filter>('all')
 

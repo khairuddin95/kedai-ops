@@ -33,8 +33,11 @@ export default function TaskDetailPage() {
   const [notes, setNotes]       = useState(existing?.notes ?? '')
   const [rating, setRating]     = useState(existing?.rating ?? 0)
   const [submitting, setSub]    = useState(false)
+  const [submitError, setSubmitError] = useState('')
   const [lightbox, setLightbox] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const localPhotosRef = useRef(localPhotos)
+  localPhotosRef.current = localPhotos
 
   const totalItems = task?.items.length ?? 0
   const checkCount = checked.length
@@ -53,6 +56,13 @@ export default function TaskDetailPage() {
   // saveTaskState is stable (useCallback with [state.user])
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checked, photos, notes, rating])
+
+  // Revoke any unsubmitted local preview URLs on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      localPhotosRef.current.forEach(p => URL.revokeObjectURL(p.preview))
+    }
+  }, [])
 
   if (!task) return (
     <div className="text-center py-20 text-[var(--text-muted)]">
@@ -82,14 +92,23 @@ export default function TaskDetailPage() {
 
   const handleSubmit = async () => {
     setSub(true)
+    setSubmitError('')
     const subId = `sub_${Date.now()}`
 
     let uploadedUrls: string[] = [...photos]
+    let uploadFailed = false
     if (supabaseConfigured && localPhotos.length > 0) {
       const results = await Promise.all(localPhotos.map(p => db.uploadTaskPhoto(p.file, subId)))
+      uploadFailed = results.some(r => !r)
       uploadedUrls = [...uploadedUrls, ...results.filter(Boolean) as string[]]
     } else {
       uploadedUrls = [...uploadedUrls, ...localPhotos.map(p => p.preview)]
+    }
+
+    if (uploadFailed && task.requiresPhoto && uploadedUrls.length === 0) {
+      setSubmitError(lang === 'bm' ? 'Gagal muat naik foto. Cuba lagi.' : 'Photo upload failed. Try again.')
+      setSub(false)
+      return
     }
 
     const sub: Submission = {
@@ -109,8 +128,15 @@ export default function TaskDetailPage() {
       groupTitle: task.groupTitle,
       groupColor: task.groupColor,
     }
-    await submitTask(sub)
+    const ok = await submitTask(sub)
+    if (!ok) {
+      setSubmitError(lang === 'bm' ? 'Gagal hantar tugasan. Cuba lagi.' : 'Failed to submit task. Try again.')
+      setSub(false)
+      return
+    }
     await saveTaskState({ taskId: task.id, checkedItems: checked, photos: uploadedUrls, notes, rating, status: 'done' })
+    // Revoke local preview URLs since the submission is now persisted
+    localPhotos.forEach(p => URL.revokeObjectURL(p.preview))
     navigate(`/tasks/${task.id}/submitted`)
   }
 
@@ -245,6 +271,12 @@ export default function TaskDetailPage() {
         <StarRating value={rating} onChange={setRating} size="lg" />
         <p className="text-xs text-[var(--text-muted)] mt-2">💡 {s.rating_tip}</p>
       </Card>
+
+      {submitError && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm rounded-lg px-4 py-3">
+          ⚠️ {submitError}
+        </div>
+      )}
 
       {/* Sticky footer */}
       <div className="fixed bottom-0 left-0 right-0 md:left-[220px] p-4 bg-[var(--surface)] border-t border-[var(--border)] flex gap-3 z-30">

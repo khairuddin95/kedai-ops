@@ -100,6 +100,14 @@ export default function StaffPage() {
 
     setSaving(true)
 
+    // Re-check username against the DB right before insert. Closes the race
+    // window where a username appeared free locally but was just taken by
+    // another concurrent admin session.
+    if (!isEdit && supabaseConfigured) {
+      const existing = await db.checkUsername(form.username.toLowerCase().trim())
+      if (existing) { setError(s.username_taken); setSaving(false); return }
+    }
+
     if (isEdit) {
       const updates = { name: form.name.trim(), role: form.role, branch: form.branch, avatar: form.avatar, default_shift: form.defaultShift || null, department: form.department || null }
       if (supabaseConfigured) await db.updateUser(editId, updates)
@@ -116,7 +124,8 @@ export default function StaffPage() {
         newUser = { id: `mock_${Date.now()}`, name: form.name.trim(), role: form.role, branch: form.branch, avatar: form.avatar, username: form.username.toLowerCase() }
       }
       if (!newUser) { setError(s.save_failed); setSaving(false); return }
-      setUsers(prev => [...prev, newUser!].sort((a, b) => a.name.localeCompare(b.name)))
+      const u = newUser
+      setUsers(prev => [...prev, u].sort((a, b) => a.name.localeCompare(b.name)))
       setSuccess(s.staff_added)
     }
 
@@ -135,11 +144,11 @@ export default function StaffPage() {
   }
 
   const handleResetPin = async (u: User) => {
-    if (!confirm(`Reset PIN untuk ${u.name}? Mereka perlu tetapkan PIN baru semasa log masuk.`)) return
+    if (!confirm(`${u.name} — ${s.confirm_reset_pin}`)) return
     setResettingPin(u.id)
     if (supabaseConfigured) await db.resetUserPin(u.id, u.branch)
     setResettingPin(null)
-    setSuccess(`PIN ${u.name} telah diset semula.`)
+    setSuccess(`${u.name}: ${s.pin_reset_success}`)
     setTimeout(() => setSuccess(''), 3000)
   }
 
