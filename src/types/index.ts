@@ -1,4 +1,5 @@
 export type ShiftId = 'morning' | 'evening'
+export type Department = 'kitchen' | 'service'
 
 export interface Shift {
   id: ShiftId
@@ -9,6 +10,7 @@ export interface Shift {
 
 export type TaskGroupShift = 'morning' | 'evening' | 'both'
 export type TaskGroupFrequency = 'daily' | 'weekly'
+export type TaskGroupDepartment = 'kitchen' | 'service' | 'all'
 
 export interface TaskGroup {
   id: string
@@ -18,6 +20,7 @@ export interface TaskGroup {
   color: string
   shift: TaskGroupShift
   frequency: TaskGroupFrequency
+  department: TaskGroupDepartment
   tasks: Task[]
 }
 
@@ -66,6 +69,7 @@ export interface User {
   username: string
   telegramId?: string
   defaultShift?: ShiftId
+  department?: Department
 }
 
 export type TaskStatus = 'pending' | 'in_progress' | 'done' | 'late'

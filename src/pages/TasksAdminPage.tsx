@@ -5,14 +5,20 @@ import { ICONS } from '../components/ui/GroupIcon'
 import GroupIcon from '../components/ui/GroupIcon'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
-import type { TaskGroup, TaskGroupFrequency, TaskGroupShift } from '../types'
+import type { TaskGroup, TaskGroupDepartment, TaskGroupFrequency, TaskGroupShift } from '../types'
 
 const PRESET_COLORS = [
   '#f59e0b','#10b981','#3b82f6','#8b5cf6',
   '#ef4444','#f472b6','#06b6d4','#84cc16',
 ]
 
-const blankGroup = { title: '', time: '', icon: 'sunrise', color: '#f59e0b', shift: 'both' as TaskGroupShift, frequency: 'daily' as TaskGroupFrequency }
+const DEPT_OPTIONS: { value: TaskGroupDepartment; icon: string; label: string }[] = [
+  { value: 'all',     icon: '🌐', label: 'Semua' },
+  { value: 'kitchen', icon: '🍳', label: 'Kitchen' },
+  { value: 'service', icon: '🛎️', label: 'Service' },
+]
+
+const blankGroup = { title: '', time: '', icon: 'sunrise', color: '#f59e0b', shift: 'both' as TaskGroupShift, frequency: 'daily' as TaskGroupFrequency, department: 'all' as TaskGroupDepartment }
 
 const SHIFT_OPTIONS: { value: TaskGroupShift; icon: string; labelKey: string }[] = [
   { value: 'morning', icon: '☀️', labelKey: 'shift_morning_only' },
@@ -47,7 +53,7 @@ export default function TasksAdminPage() {
     if (!gForm.title.trim() || !gForm.time.trim()) { setError(s.fill_all); return }
     setError(''); setSavingG(true)
     const id = `grp_${Date.now()}`
-    await addTaskGroup({ id, title: gForm.title.trim(), time: gForm.time.trim(), icon: gForm.icon, color: gForm.color, shift: gForm.shift, frequency: gForm.frequency } as Omit<TaskGroup, 'tasks'>)
+    await addTaskGroup({ id, title: gForm.title.trim(), time: gForm.time.trim(), icon: gForm.icon, color: gForm.color, shift: gForm.shift, frequency: gForm.frequency, department: gForm.department } as Omit<TaskGroup, 'tasks'>)
     setSavingG(false)
     setShowGroup(false)
     setGForm({ ...blankGroup })
@@ -223,6 +229,31 @@ export default function TasksAdminPage() {
                 ))}
               </div>
             </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-medium text-[var(--text-soft)] mb-2">
+                {lang === 'bm' ? 'Jabatan' : 'Department'}
+              </label>
+              <div className="flex gap-2">
+                {DEPT_OPTIONS.map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setGForm(f => ({ ...f, department: opt.value }))}
+                    className={`flex-1 py-2 rounded-md text-xs font-medium border transition-all ${
+                      gForm.department === opt.value
+                        ? opt.value === 'kitchen'
+                          ? 'bg-orange-100 border-orange-400 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                          : opt.value === 'service'
+                          ? 'bg-sky-100 border-sky-400 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400'
+                          : 'bg-brand-100 border-brand-400 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400'
+                        : 'bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-muted)]'
+                    }`}
+                  >
+                    {opt.icon} {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           {error && <p className="mt-3 text-xs text-red-500 bg-red-50 dark:bg-red-900/20 rounded px-3 py-2">{error}</p>}
@@ -245,10 +276,11 @@ export default function TasksAdminPage() {
             <GroupIcon icon={group.icon} color={group.color} size={36} />
             <div className="flex-1 min-w-0">
               <div className="font-semibold text-sm text-[var(--text)]">{group.title}</div>
-              <div className="text-xs text-[var(--text-muted)] flex items-center gap-2">
+              <div className="text-xs text-[var(--text-muted)] flex items-center gap-2 flex-wrap">
                 <span>⏱ {group.time} · {group.tasks.length} {s.tasks_count}</span>
                 <span>{group.shift === 'morning' ? '☀️' : group.shift === 'evening' ? '🌙' : '🌐'}</span>
                 <span>{group.frequency === 'weekly' ? '📆' : '📅'}</span>
+                <span>{group.department === 'kitchen' ? '🍳' : group.department === 'service' ? '🛎️' : '🌐'}</span>
               </div>
             </div>
             <span className="text-[var(--text-muted)] text-sm transition-transform duration-200" style={{ display: 'inline-block', transform: expanded[group.id] ? 'rotate(90deg)' : 'rotate(0deg)' }}>›</span>
@@ -299,6 +331,29 @@ export default function TasksAdminPage() {
                         }`}
                       >
                         {f === 'daily' ? '📅' : '📆'} {f === 'daily' ? s.freq_daily : s.freq_weekly}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-[var(--text-soft)] mb-1.5">{lang === 'bm' ? 'Jabatan' : 'Department'}</p>
+                  <div className="flex gap-1.5">
+                    {DEPT_OPTIONS.map(opt => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => updateTaskGroup(group.id, { department: opt.value })}
+                        className={`flex-1 py-1.5 rounded-md text-xs font-medium border transition-all ${
+                          (group.department ?? 'all') === opt.value
+                            ? opt.value === 'kitchen'
+                              ? 'bg-orange-100 border-orange-400 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                              : opt.value === 'service'
+                              ? 'bg-sky-100 border-sky-400 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400'
+                              : 'bg-brand-100 border-brand-400 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400'
+                            : 'bg-[var(--surface)] border-[var(--border)] text-[var(--text-muted)]'
+                        }`}
+                      >
+                        {opt.icon} {opt.label}
                       </button>
                     ))}
                   </div>

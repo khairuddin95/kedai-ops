@@ -45,6 +45,7 @@ function TaskTab() {
   const lang = state.lang
   const s = STRINGS[lang]
   const subs = state.submissions
+  const taskGroups = state.taskGroups
 
   const stats = useMemo(() => {
     const total     = subs.length
@@ -114,8 +115,29 @@ function TaskTab() {
     { label: s.active_staff,    value: String(stats.staffCount),           icon: '👥', color: '#8b5cf6', bg: 'bg-violet-50 dark:bg-violet-900/20' },
   ]
 
+  const kitchenGroups = taskGroups.filter(g => g.department === 'kitchen').length
+  const serviceGroups = taskGroups.filter(g => g.department === 'service').length
+  const allGroups     = taskGroups.filter(g => g.department === 'all' || !g.department).length
+
   return (
     <div className="space-y-5">
+      {/* Department breakdown */}
+      {(kitchenGroups > 0 || serviceGroups > 0) && (
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { icon: '🍳', label: 'Kitchen', value: kitchenGroups, bg: 'bg-orange-50 dark:bg-orange-900/20', color: 'text-orange-600' },
+            { icon: '🛎️', label: 'Service', value: serviceGroups, bg: 'bg-sky-50 dark:bg-sky-900/20',    color: 'text-sky-600' },
+            { icon: '🌐', label: lang === 'bm' ? 'Semua' : 'All', value: allGroups, bg: 'bg-[var(--surface-2)]', color: 'text-[var(--text)]' },
+          ].map(d => (
+            <div key={d.label} className={`${d.bg} rounded-xl p-3 border border-[var(--border)] text-center`}>
+              <div className="text-xl mb-1">{d.icon}</div>
+              <div className={`font-mono text-2xl font-extrabold ${d.color}`}>{d.value}</div>
+              <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{d.label} {lang === 'bm' ? 'kumpulan' : 'groups'}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {kpis.map(k => (
           <div key={k.label} className={`${k.bg} rounded-lg p-3 sm:p-4 border border-[var(--border)]`}>

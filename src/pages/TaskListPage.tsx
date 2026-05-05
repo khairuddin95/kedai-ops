@@ -16,12 +16,14 @@ export default function TaskListPage() {
   const s = STRINGS[lang]
   const ts = state.taskStates
 
-  const shiftId = state.shift?.id
+  const shiftId  = state.shift?.id
+  const userDept = state.user?.department
   const isSunday = new Date().getDay() === 0
   const ALL_TASKS = state.taskGroups
     .filter(g =>
       (!g.shift || g.shift === 'both' || g.shift === shiftId) &&
-      (g.frequency !== 'weekly' || isSunday)
+      (g.frequency !== 'weekly' || isSunday) &&
+      (!userDept || g.department === 'all' || g.department === userDept)
     )
     .flatMap(g => g.tasks.map(t => ({ ...t, groupId: g.id, groupTitle: g.title, groupColor: g.color, groupIcon: g.icon })))
 

@@ -37,6 +37,7 @@ export default function SchedulePage() {
   const [loading, setLoading]   = useState(true)
   const [saving, setSaving]     = useState<string | null>(null)  // 'userId-day' key
   const [filterBranch, setFilterBranch] = useState('')
+  const [filterDept, setFilterDept] = useState<'all' | 'kitchen' | 'service'>('all')
 
   // schedMap[userId][dayOfWeek] = shift | null
   const [schedMap, setSchedMap] = useState<Record<string, Record<number, ShiftCell>>>({})
@@ -81,9 +82,9 @@ export default function SchedulePage() {
     setSaving(null)
   }
 
-  const filteredUsers = filterBranch
-    ? users.filter(u => u.branch === filterBranch)
-    : users
+  const filteredUsers = users
+    .filter(u => !filterBranch || u.branch === filterBranch)
+    .filter(u => filterDept === 'all' || u.department === filterDept)
 
   const staffOnly = filteredUsers.filter(u => u.role === 'staff' || u.role === 'supervisor')
 
@@ -115,6 +116,21 @@ export default function SchedulePage() {
             ))}
           </select>
         )}
+      </div>
+
+      {/* Department tabs */}
+      <div className="flex gap-1 p-1 bg-[var(--surface-2)] rounded-xl">
+        {([['all', '🌐', lang === 'bm' ? 'Semua' : 'All'], ['kitchen', '🍳', 'Kitchen'], ['service', '🛎️', 'Service']] as const).map(([id, icon, label]) => (
+          <button
+            key={id}
+            onClick={() => setFilterDept(id)}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-semibold transition-all ${
+              filterDept === id ? 'bg-[var(--surface)] text-[var(--text)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+            }`}
+          >
+            <span>{icon}</span><span>{label}</span>
+          </button>
+        ))}
       </div>
 
       {/* Legend */}

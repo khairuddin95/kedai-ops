@@ -4,12 +4,12 @@
  * so the UI can fall back to mock data gracefully.
  */
 import { supabase } from './supabase'
-import type { Asset, Branch, LoanRequest, MaintenanceReport, Submission, Task, TaskGroup, TaskGroupFrequency, TaskGroupShift, TaskState, User } from '../types'
+import type { Asset, Branch, LoanRequest, MaintenanceReport, Submission, Task, TaskGroup, TaskGroupDepartment, TaskGroupFrequency, TaskGroupShift, TaskState, User } from '../types'
 
 // ─── helpers ────────────────────────────────────────────────
 
 function taskGroupFromDb(
-  g: { id: string; title: string; time: string; icon: string; color: string; shift?: string | null; frequency?: string | null },
+  g: { id: string; title: string; time: string; icon: string; color: string; shift?: string | null; frequency?: string | null; department?: string | null },
   tasks: {
     id: string; title: string; est: number; items: string[]
     requires_photo: boolean; group_id: string
@@ -19,6 +19,7 @@ function taskGroupFromDb(
     id: g.id, title: g.title, time: g.time, icon: g.icon, color: g.color,
     shift: (g.shift as TaskGroup['shift']) ?? 'both',
     frequency: (g.frequency as TaskGroupFrequency) ?? 'daily',
+    department: (g.department as TaskGroupDepartment) ?? 'all',
     tasks: tasks
       .filter(t => t.group_id === g.id)
       .map(t => ({
@@ -122,7 +123,7 @@ export async function fetchUsers(): Promise<User[] | null> {
   if (!supabase) return null
   const { data, error } = await supabase
     .from('users')
-    .select('id, name, role, branch, avatar, username, pin_set, telegram_id, default_shift')
+    .select('id, name, role, branch, avatar, username, pin_set, telegram_id, default_shift, department')
     .order('name')
   if (error) { console.error('[db] fetchUsers:', error); return null }
   return (data ?? []).map(r => ({
@@ -130,6 +131,7 @@ export async function fetchUsers(): Promise<User[] | null> {
     branch: r.branch, avatar: r.avatar, username: r.username ?? '',
     telegramId: r.telegram_id ?? undefined,
     defaultShift: (r.default_shift as import('../types').ShiftId) || undefined,
+    department: (r.department as import('../types').Department) || undefined,
   }))
 }
 
@@ -152,7 +154,7 @@ export async function registerUser(
 
 export async function updateUser(
   id: string,
-  updates: { name: string; role: string; branch: string; avatar: string; default_shift?: string | null }
+  updates: { name: string; role: string; branch: string; avatar: string; default_shift?: string | null; department?: string | null }
 ): Promise<boolean> {
   if (!supabase) return false
   const { error } = await supabase.from('users').update(updates).eq('id', id)
@@ -189,14 +191,14 @@ export async function insertTaskGroup(
   if (!supabase) return null
   const { data, error } = await supabase
     .from('task_groups')
-    .insert({ id: g.id, title: g.title, time: g.time, icon: g.icon, color: g.color, shift: g.shift ?? 'both', frequency: g.frequency ?? 'daily', sort_order: g.sortOrder })
+    .insert({ id: g.id, title: g.title, time: g.time, icon: g.icon, color: g.color, shift: g.shift ?? 'both', frequency: g.frequency ?? 'daily', department: g.department ?? 'all', sort_order: g.sortOrder })
     .select()
     .single()
   if (error) { console.error('[db] insertTaskGroup:', error); return null }
-  return { id: data.id, title: data.title, time: data.time, icon: data.icon, color: data.color, shift: (data.shift as TaskGroupShift) ?? 'both', frequency: (data.frequency as TaskGroupFrequency) ?? 'daily', tasks: [] }
+  return { id: data.id, title: data.title, time: data.time, icon: data.icon, color: data.color, shift: (data.shift as TaskGroupShift) ?? 'both', frequency: (data.frequency as TaskGroupFrequency) ?? 'daily', department: (data.department as TaskGroupDepartment) ?? 'all', tasks: [] }
 }
 
-export async function updateTaskGroup(id: string, updates: Partial<{ shift: TaskGroupShift; frequency: TaskGroupFrequency; title: string; time: string; icon: string; color: string }>): Promise<void> {
+export async function updateTaskGroup(id: string, updates: Partial<{ shift: TaskGroupShift; frequency: TaskGroupFrequency; department: TaskGroupDepartment; title: string; time: string; icon: string; color: string }>): Promise<void> {
   if (!supabase) return
   const { error } = await supabase.from('task_groups').update(updates).eq('id', id)
   if (error) console.error('[db] updateTaskGroup:', error)

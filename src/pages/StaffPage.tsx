@@ -7,7 +7,7 @@ import Badge from '../components/ui/Badge'
 import * as db from '../lib/db'
 import { supabaseConfigured } from '../lib/supabase'
 import { USERS as MOCK_USERS, BRANCHES as MOCK_BRANCHES } from '../data/mockData'
-import type { Branch, ShiftId, User } from '../types'
+import type { Branch, Department, ShiftId, User } from '../types'
 
 const AVATARS = ['🧑‍🍳','👩‍🍳','👨‍🍳','🧑‍💼','👨‍💼','👩‍💼','🧑','👩','👦','👧','🙂','😊']
 
@@ -23,8 +23,15 @@ const SHIFT_OPTIONS: { id: ShiftId | ''; label: string }[] = [
   { id: 'evening', label: '🌙 Shift Petang' },
 ]
 
+const DEPT_OPTIONS: { id: Department | ''; label: string }[] = [
+  { id: '',        label: '— Tiada' },
+  { id: 'kitchen', label: '🍳 Kitchen' },
+  { id: 'service', label: '🛎️ Service' },
+]
+
 const blank = {
-  name: '', role: 'staff' as User['role'], branch: '', username: '', avatar: '🧑‍🍳', defaultShift: '' as ShiftId | '',
+  name: '', role: 'staff' as User['role'], branch: '', username: '', avatar: '🧑‍🍳',
+  defaultShift: '' as ShiftId | '', department: '' as Department | '',
 }
 
 export default function StaffPage() {
@@ -66,7 +73,7 @@ export default function StaffPage() {
   const openAdd = () => { resetForm(); setShowForm(true) }
 
   const openEdit = (u: User) => {
-    setForm({ name: u.name, role: u.role, branch: u.branch, username: u.username, avatar: u.avatar, defaultShift: u.defaultShift ?? '' })
+    setForm({ name: u.name, role: u.role, branch: u.branch, username: u.username, avatar: u.avatar, defaultShift: u.defaultShift ?? '', department: u.department ?? '' })
     setEditId(u.id)
     setShowForm(true)
   }
@@ -94,10 +101,10 @@ export default function StaffPage() {
     setSaving(true)
 
     if (isEdit) {
-      const updates = { name: form.name.trim(), role: form.role, branch: form.branch, avatar: form.avatar, default_shift: form.defaultShift || null }
+      const updates = { name: form.name.trim(), role: form.role, branch: form.branch, avatar: form.avatar, default_shift: form.defaultShift || null, department: form.department || null }
       if (supabaseConfigured) await db.updateUser(editId, updates)
-      const { default_shift, ...rest } = updates
-      setUsers(prev => prev.map(u => u.id === editId ? { ...u, ...rest, defaultShift: (default_shift as ShiftId) || undefined } : u))
+      const { default_shift, department, ...rest } = updates
+      setUsers(prev => prev.map(u => u.id === editId ? { ...u, ...rest, defaultShift: (default_shift as ShiftId) || undefined, department: (department as Department) || undefined } : u))
       setSuccess(s.staff_saved)
     } else {
       let newUser: User | null = null
@@ -235,8 +242,21 @@ export default function StaffPage() {
               </select>
             </div>
 
-            {/* Default shift */}
-            <div className="sm:col-span-2">
+            {/* Department + Default shift — side by side */}
+            <div>
+              <label className="block text-xs font-medium text-[var(--text-soft)] mb-1">
+                {lang === 'bm' ? 'Jabatan' : 'Department'}
+              </label>
+              <select
+                value={form.department}
+                onChange={e => setForm(f => ({ ...f, department: e.target.value as Department | '' }))}
+                className="w-full bg-[var(--surface-2)] border border-[var(--border)] rounded-md px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-brand-400 transition-colors"
+              >
+                {DEPT_OPTIONS.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+              </select>
+            </div>
+
+            <div>
               <label className="block text-xs font-medium text-[var(--text-soft)] mb-1">
                 {lang === 'bm' ? 'Shift Tetap' : 'Default Shift'}
               </label>
@@ -247,9 +267,6 @@ export default function StaffPage() {
               >
                 {SHIFT_OPTIONS.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
               </select>
-              <p className="text-[10px] text-[var(--text-muted)] mt-1">
-                {lang === 'bm' ? 'Staff akan terus masuk tanpa perlu pilih shift semasa login' : 'Staff will skip shift selection on login'}
-              </p>
             </div>
 
             {/* Username — editable when adding, read-only when editing */}
@@ -320,10 +337,14 @@ export default function StaffPage() {
                 <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                   <span className="text-xs text-[var(--text-muted)]">📍 {u.branch}</span>
                   <span className="text-xs text-[var(--text-muted)] font-mono">@{u.username}</span>
-                  {u.defaultShift
-                    ? <span className="text-xs font-medium text-amber-600 dark:text-amber-400">{u.defaultShift === 'morning' ? '☀️ Pagi' : '🌙 Petang'}</span>
-                    : <span className="text-xs text-[var(--text-muted)]">🔄 Pilih shift</span>
-                  }
+                  {u.department && (
+                    <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${u.department === 'kitchen' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400' : 'bg-sky-100 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400'}`}>
+                      {u.department === 'kitchen' ? '🍳 Kitchen' : '🛎️ Service'}
+                    </span>
+                  )}
+                  {u.defaultShift && (
+                    <span className="text-xs font-medium text-amber-600 dark:text-amber-400">{u.defaultShift === 'morning' ? '☀️' : '🌙'}</span>
+                  )}
                 </div>
               </div>
 
