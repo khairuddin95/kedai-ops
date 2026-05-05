@@ -171,20 +171,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [state.user, state.shift])
 
-  // Daily reset — clear task states + yesterday's submissions when a new day begins
+  // Daily reset — clear task states when a new day begins so staff start fresh.
+  // Submissions are NEVER deleted; they accumulate as permanent history.
   useEffect(() => {
     const today = new Date().toDateString()
     const lastReset = localStorage.getItem('last_daily_reset')
     if (lastReset && lastReset !== today) {
-      // Clear task states in memory and DB
       dispatch({ type: 'RESET_DAILY' })
-      // Delete submissions from the previous day
-      dispatch({ type: 'SET_SUBMISSIONS', subs: [] })
       if (supabaseConfigured && state.user) {
-        const yesterday = new Date()
-        yesterday.setDate(yesterday.getDate() - 1)
         db.clearUserTaskStates(state.user.id).catch(() => {})
-        db.deleteSubmissionsOnDate(yesterday).catch(() => {})
       }
     }
     localStorage.setItem('last_daily_reset', today)

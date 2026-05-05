@@ -251,11 +251,14 @@ export async function fetchTaskGroups(): Promise<TaskGroup[] | null> {
 
 // ─── Submissions ─────────────────────────────────────────────
 
-export async function fetchSubmissions(): Promise<Submission[] | null> {
+export async function fetchSubmissions(days = 30): Promise<Submission[] | null> {
   if (!supabase) return null
+  const since = new Date()
+  since.setDate(since.getDate() - days)
   const { data, error } = await supabase
     .from('submissions')
     .select('*')
+    .gte('submitted_at', since.toISOString())
     .order('submitted_at', { ascending: false })
   if (error) { console.error('[db] fetchSubmissions:', error); return null }
   return (data ?? []).map(submissionFromDb)
@@ -302,27 +305,16 @@ export async function updateSubmissionStatus(
   return true
 }
 
-export async function deleteSubmissionsOnDate(date: Date): Promise<boolean> {
-  if (!supabase) return false
-  const start = new Date(date); start.setHours(0, 0, 0, 0)
-  const end   = new Date(date); end.setHours(23, 59, 59, 999)
-  const { error } = await supabase
-    .from('submissions')
-    .delete()
-    .gte('submitted_at', start.toISOString())
-    .lte('submitted_at', end.toISOString())
-  if (error) { console.error('[db] deleteSubmissionsOnDate:', error); return false }
-  return true
-}
-
 // ─── Task States ─────────────────────────────────────────────
 
 export async function fetchTaskStates(userId: string): Promise<Record<string, TaskState> | null> {
   if (!supabase) return null
+  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
   const { data, error } = await supabase
     .from('task_states')
     .select('*')
     .eq('user_id', userId)
+    .gte('updated_at', todayStart.toISOString())
   if (error) { console.error('[db] fetchTaskStates:', error); return null }
   const map: Record<string, TaskState> = {}
   for (const r of data ?? []) {
