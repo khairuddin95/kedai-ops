@@ -8,7 +8,6 @@ import { SubStatusBadge } from '../components/ui/Badge'
 import type { Submission, SubmissionStatus } from '../types'
 
 type Tab = 'pending' | 'approved' | 'rejected'
-const PHOTO_COLORS = ['#fbbf24','#34d399','#60a5fa','#f472b6']
 
 export default function ReviewPage() {
   const { state, reviewSubmission } = useApp()
@@ -19,6 +18,7 @@ export default function ReviewPage() {
   const [comment, setComment] = useState('')
   const [deciding, setDeciding] = useState<SubmissionStatus | null>(null)
   const [errorMsg, setErrorMsg] = useState('')
+  const [lightbox, setLightbox] = useState<string | null>(null)
 
   const visibleSubs = state.submissions.filter(sub => sub.status === tab)
   const pending = state.submissions.filter(sub => sub.status === 'pending').length
@@ -157,8 +157,10 @@ export default function ReviewPage() {
                   <div>
                     <p className="text-xs font-semibold text-[var(--text-muted)] mb-2">📷 Foto ({selected.photos.length})</p>
                     <div className="grid grid-cols-3 gap-2">
-                      {selected.photos.map((_c, i) => (
-                        <div key={i} className="aspect-square rounded-md flex items-center justify-center text-3xl" style={{ background: PHOTO_COLORS[i % PHOTO_COLORS.length] }}>📷</div>
+                      {selected.photos.map((url, i) => (
+                        <button key={i} onClick={() => setLightbox(url)} className="aspect-square rounded-md overflow-hidden border border-[var(--border)] hover:opacity-80 transition-opacity">
+                          <img src={url} alt="" className="w-full h-full object-cover" />
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -232,6 +234,17 @@ export default function ReviewPage() {
           )}
         </div>
       </div>
+
+      {/* Lightbox */}
+      {lightbox && (
+        <div
+          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
+          onClick={() => setLightbox(null)}
+        >
+          <img src={lightbox} alt="" className="max-w-full max-h-full rounded-lg object-contain" />
+          <button className="absolute top-4 right-4 text-white text-2xl w-10 h-10 flex items-center justify-center bg-black/40 rounded-full">×</button>
+        </div>
+      )}
     </div>
   )
 }

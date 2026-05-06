@@ -15,8 +15,9 @@ export default function HistoryPage() {
   const s = STRINGS[lang]
   const [filter, setFilter] = useState<Filter>('all')
   const [expanded, setExpanded] = useState<string | null>(null)
+  const [lightbox, setLightbox] = useState<string | null>(null)
 
-  const subs = filter === 'all' ? state.submissions : state.submissions.filter(s => s.status === filter)
+  const subs = filter === 'all' ? state.submissions : state.submissions.filter(sub => sub.status === filter)
 
   const filters: { key: Filter; label: string }[] = [
     { key: 'all',      label: s.all_tasks },
@@ -24,8 +25,6 @@ export default function HistoryPage() {
     { key: 'rejected', label: s.rejected },
     { key: 'pending',  label: s.pending },
   ]
-
-  const PHOTO_COLORS = ['#fbbf24','#34d399','#60a5fa','#f472b6']
 
   return (
     <div className="space-y-4">
@@ -92,10 +91,12 @@ export default function HistoryPage() {
               <div className="border-t border-[var(--border)] p-4 space-y-3 animate-fadeIn">
                 {sub.photos.length > 0 && (
                   <div>
-                    <p className="text-xs font-semibold text-[var(--text-muted)] mb-2">📷 Foto</p>
+                    <p className="text-xs font-semibold text-[var(--text-muted)] mb-2">📷 Foto ({sub.photos.length})</p>
                     <div className="flex flex-wrap gap-2">
-                      {sub.photos.map((_c, i) => (
-                        <div key={i} className="w-16 h-16 rounded-md flex items-center justify-center text-2xl" style={{ background: PHOTO_COLORS[i % PHOTO_COLORS.length] }}>📷</div>
+                      {sub.photos.map((url, i) => (
+                        <button key={i} onClick={() => setLightbox(url)} className="w-16 h-16 rounded-md overflow-hidden border border-[var(--border)] hover:opacity-80 transition-opacity">
+                          <img src={url} alt="" className="w-full h-full object-cover" />
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -108,7 +109,7 @@ export default function HistoryPage() {
                 )}
                 {sub.supervisorComment && (
                   <div>
-                    <p className="text-xs font-semibold text-[var(--text-muted)] mb-1">💬 Komen Supervisor</p>
+                    <p className="text-xs font-semibold text-[var(--text-muted)] mb-1">💬 {lang === 'bm' ? 'Komen Supervisor' : 'Supervisor Comment'}</p>
                     <p className="text-sm text-[var(--text)] bg-[var(--surface-2)] rounded-md px-3 py-2">{sub.supervisorComment}</p>
                   </div>
                 )}
@@ -117,6 +118,17 @@ export default function HistoryPage() {
           </Card>
         ))}
       </div>
+
+      {/* Lightbox */}
+      {lightbox && (
+        <div
+          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
+          onClick={() => setLightbox(null)}
+        >
+          <img src={lightbox} alt="" className="max-w-full max-h-full rounded-lg object-contain" />
+          <button className="absolute top-4 right-4 text-white text-2xl w-10 h-10 flex items-center justify-center bg-black/40 rounded-full">×</button>
+        </div>
+      )}
     </div>
   )
 }
