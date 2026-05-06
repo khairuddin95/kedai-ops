@@ -96,7 +96,7 @@ export default function BranchPage() {
         <div>
           <h2 className="text-xl font-bold text-[var(--text)]">{s.branch_mgmt}</h2>
           <p className="text-sm text-[var(--text-muted)] mt-0.5">
-            {branches.length} {lang === 'bm' ? 'cawangan' : 'branches'}
+            {branches.length} {s.branch_count_suffix}
           </p>
         </div>
         {isOwner && !showForm && (
@@ -109,7 +109,7 @@ export default function BranchPage() {
         {[
           { label: s.total_branches,  value: branches.length, icon: '🏪', color: 'text-brand-600' },
           { label: s.active_branches, value: active,          icon: '🟢', color: 'text-emerald-600' },
-          { label: lang === 'bm' ? 'Tidak Aktif' : 'Inactive', value: inactive, icon: '⚪', color: 'text-[var(--text-muted)]' },
+          { label: s.branch_inactive, value: inactive, icon: '⚪', color: 'text-[var(--text-muted)]' },
         ].map(stat => (
           <div key={stat.label} className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4">
             <div className="text-2xl mb-1">{stat.icon}</div>
@@ -152,7 +152,7 @@ export default function BranchPage() {
               <input
                 value={form.address}
                 onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
-                placeholder={lang === 'bm' ? 'No. X, Jalan …' : 'No. X, Jalan …'}
+                placeholder="No. X, Jalan …"
                 className="w-full bg-[var(--surface-2)] border border-[var(--border)] rounded-md px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none focus:border-brand-400 transition-colors"
               />
             </div>

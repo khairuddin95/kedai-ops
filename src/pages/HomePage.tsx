@@ -216,9 +216,7 @@ export default function HomePage() {
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-sm text-[var(--text)]">{s.google_review}</div>
                   <div className="text-xs text-[var(--text-muted)]">
-                    {grDone
-                      ? (lang === 'bm' ? '✅ Sasaran tercapai!' : '✅ Target reached!')
-                      : (lang === 'bm' ? `${grCount}/${grTarget} review` : `${grCount}/${grTarget} reviews`)}
+                    {grDone ? s.gr_target_short : `${grCount}/${grTarget} ${s.gr_reviews_count}`}
                   </div>
                 </div>
                 <span className={`text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${

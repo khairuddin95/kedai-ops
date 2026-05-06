@@ -173,7 +173,7 @@ export default function AssetPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: s.total_assets,  value: stats.total,  icon: '📦', color: 'text-brand-600' },
-          { label: lang === 'bm' ? 'Jenis Aset' : 'Asset Types', value: stats.items,  icon: '🗂️', color: 'text-indigo-600' },
+          { label: s.asset_types_label, value: stats.items, icon: '🗂️', color: 'text-indigo-600' },
           { label: s.assets_good,   value: stats.good,   icon: '✅', color: 'text-emerald-600' },
           { label: s.assets_poor,   value: stats.poor,   icon: '🔴', color: 'text-red-600' },
         ].map(stat => (
@@ -282,7 +282,7 @@ export default function AssetPage() {
               <input
                 value={form.notes}
                 onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-                placeholder={lang === 'bm' ? 'Catatan tambahan…' : 'Additional notes…'}
+                placeholder={s.asset_notes_ph}
                 className="w-full bg-[var(--surface-2)] border border-[var(--border)] rounded-md px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none focus:border-brand-400 transition-colors"
               />
             </div>
@@ -308,7 +308,7 @@ export default function AssetPage() {
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder={lang === 'bm' ? 'Cari aset…' : 'Search assets…'}
+          placeholder={s.asset_search_ph}
           className="flex-1 min-w-[160px] bg-[var(--surface)] border border-[var(--border)] rounded-md px-3 py-1.5 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none focus:border-brand-400 transition-colors"
         />
         <select

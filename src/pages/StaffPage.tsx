@@ -254,7 +254,7 @@ export default function StaffPage() {
             {/* Department + Default shift — side by side */}
             <div>
               <label className="block text-xs font-medium text-[var(--text-soft)] mb-1">
-                {lang === 'bm' ? 'Jabatan' : 'Department'}
+                {s.dept_label}
               </label>
               <select
                 value={form.department}
@@ -267,7 +267,7 @@ export default function StaffPage() {
 
             <div>
               <label className="block text-xs font-medium text-[var(--text-soft)] mb-1">
-                {lang === 'bm' ? 'Shift Tetap' : 'Default Shift'}
+                {s.default_shift}
               </label>
               <select
                 value={form.defaultShift}

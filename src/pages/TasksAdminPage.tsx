@@ -270,7 +270,7 @@ export default function TasksAdminPage() {
               <input
                 value={gForm.title}
                 onChange={e => setGForm(f => ({ ...f, title: e.target.value }))}
-                placeholder={lang === 'bm' ? 'Contoh: Persediaan Lunch' : 'e.g. Lunch Prep'}
+                placeholder={s.task_group_ph}
                 className="w-full bg-[var(--surface-2)] border border-[var(--border)] rounded-md px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none focus:border-brand-400 transition-colors"
               />
             </div>
@@ -279,7 +279,7 @@ export default function TasksAdminPage() {
               <input
                 value={gForm.time}
                 onChange={e => setGForm(f => ({ ...f, time: e.target.value }))}
-                placeholder={lang === 'bm' ? '10:00 pagi' : '10:00 am'}
+                placeholder={s.task_time_ph}
                 className="w-full bg-[var(--surface-2)] border border-[var(--border)] rounded-md px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none focus:border-brand-400 transition-colors"
               />
             </div>
