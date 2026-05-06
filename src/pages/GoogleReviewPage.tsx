@@ -68,7 +68,7 @@ export default function GoogleReviewPage() {
         loggedAt:    new Date().toISOString(),
       }
       setLogs(prev => [entry, ...prev])
-      if (count + 1 >= target) showFlash(lang === 'bm' ? '🎉 Sasaran tercapai! Tugasan selesai!' : '🎉 Target reached! Task complete!')
+      if (count + 1 >= target) showFlash(s.gr_target_reached)
     }
     reader.readAsDataURL(file)
     e.target.value = ''
@@ -78,7 +78,7 @@ export default function GoogleReviewPage() {
     if (!reviewUrl) { showFlash(s.gr_no_url); return }
     const msg = lang === 'bm'
       ? `Terima kasih kerana melawati kedai kami! 😊 Boleh tinggalkan ulasan Google? ⭐\n\n${reviewUrl}`
-      : `Thank you for visiting us! 😊 Mind leaving us a Google review? ⭐\n\n${reviewUrl}`
+      : `Thank you for visiting! 😊 Mind leaving us a Google review? ⭐\n\n${reviewUrl}`
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank', 'noopener,noreferrer')
   }
 
@@ -111,7 +111,7 @@ export default function GoogleReviewPage() {
         </div>
         {isOwner && (
           <button onClick={() => setShowSettings(v => !v)} className="text-xs text-brand-600 hover:underline">
-            ⚙️ {lang === 'bm' ? 'Tetapan' : 'Settings'}
+            ⚙️ {s.gr_settings}
           </button>
         )}
       </div>
@@ -119,7 +119,7 @@ export default function GoogleReviewPage() {
       {/* Owner settings */}
       {showSettings && isOwner && (
         <Card>
-          <h3 className="font-bold text-sm text-[var(--text)] mb-3">⚙️ {lang === 'bm' ? 'Tetapan Review' : 'Review Settings'}</h3>
+          <h3 className="font-bold text-sm text-[var(--text)] mb-3">⚙️ {s.gr_settings_title}</h3>
           <div className="space-y-3">
             <div>
               <label className="block text-xs font-medium text-[var(--text-soft)] mb-1">{s.gr_url_label}</label>
@@ -129,14 +129,10 @@ export default function GoogleReviewPage() {
                 placeholder={s.gr_url_ph}
                 className="w-full bg-[var(--surface-2)] border border-[var(--border)] rounded-md px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none focus:border-brand-400 transition-colors"
               />
-              <p className="text-xs text-[var(--text-muted)] mt-1">
-                {lang === 'bm' ? 'Dari Google Business Profile → "Dapatkan lebih banyak ulasan"' : 'From Google Business Profile → "Get more reviews"'}
-              </p>
+              <p className="text-xs text-[var(--text-muted)] mt-1">{s.gr_business_hint}</p>
             </div>
             <div>
-              <label className="block text-xs font-medium text-[var(--text-soft)] mb-1">
-                {lang === 'bm' ? 'Sasaran harian' : 'Daily target'}
-              </label>
+              <label className="block text-xs font-medium text-[var(--text-soft)] mb-1">{s.gr_daily_target}</label>
               <input
                 type="number"
                 min="1"
@@ -164,12 +160,10 @@ export default function GoogleReviewPage() {
       {/* Task progress card */}
       <Card>
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-semibold text-[var(--text)]">
-            {lang === 'bm' ? 'Sasaran Review Hari Ini' : "Today's Review Target"}
-          </span>
+          <span className="text-sm font-semibold text-[var(--text)]">{s.gr_target_today}</span>
           {completed ? (
             <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
-              ✓ {lang === 'bm' ? 'Selesai!' : 'Done!'}
+              ✓ {s.gr_completed_badge}
             </span>
           ) : (
             <span className="text-xs text-[var(--text-muted)]">{count}/{target}</span>
@@ -198,14 +192,12 @@ export default function GoogleReviewPage() {
           >
             <span className="text-4xl">{completed ? '✅' : '📷'}</span>
             <span className="text-xs font-bold text-white">
-              {completed
-                ? (lang === 'bm' ? 'Siap!' : 'Done!')
-                : (lang === 'bm' ? 'Ambil Gambar' : 'Take Photo')}
+              {completed ? s.gr_done_btn : s.gr_take_photo_btn}
             </span>
           </button>
           {!completed && (
             <p className="text-xs text-[var(--text-muted)] mt-3 text-center">
-              {lang === 'bm' ? `Lagi ${target - count} gambar untuk selesai` : `${target - count} more photos to complete`}
+              {s.gr_remaining_prefix && `${s.gr_remaining_prefix} `}{target - count} {s.gr_remaining_suffix}
             </p>
           )}
         </div>
@@ -214,25 +206,21 @@ export default function GoogleReviewPage() {
       {/* Customer actions */}
       {reviewUrl && (
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide px-1">
-            {lang === 'bm' ? 'Cara minta review dari pelanggan' : 'How to ask customer for review'}
-          </p>
+          <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide px-1">{s.gr_how_to_ask}</p>
 
           <button
             onClick={() => setShowQr(v => !v)}
             className="w-full py-3.5 rounded-xl bg-[var(--surface)] border-2 border-brand-400 text-brand-600 font-semibold text-sm transition-all active:scale-95 flex items-center justify-center gap-2"
           >
             <span className="text-lg">📲</span>
-            <span>{lang === 'bm' ? 'Tunjuk QR Code' : 'Show QR Code'}</span>
+            <span>{s.gr_show_qr}</span>
           </button>
 
           {showQr && qrSrc && (
             <div className="bg-white rounded-2xl p-6 flex flex-col items-center gap-3 border border-[var(--border)]">
-              <p className="text-sm font-semibold text-gray-700 text-center">
-                {lang === 'bm' ? 'Imbas untuk tinggalkan ulasan Google ⭐' : 'Scan to leave a Google review ⭐'}
-              </p>
+              <p className="text-sm font-semibold text-gray-700 text-center">{s.gr_scan_prompt}</p>
               <img src={qrSrc} alt="QR" className="w-52 h-52" />
-              <p className="text-xs text-gray-400">{lang === 'bm' ? 'Buka kamera → imbas → tulis ulasan' : 'Open camera → scan → write review'}</p>
+              <p className="text-xs text-gray-400">{s.gr_scan_hint}</p>
             </div>
           )}
 
@@ -241,21 +229,21 @@ export default function GoogleReviewPage() {
             className="w-full py-3.5 rounded-xl bg-[#25D366] hover:bg-[#1ebe5d] active:scale-95 text-white font-semibold text-sm transition-all flex items-center justify-center gap-2"
           >
             <span className="text-lg">💬</span>
-            <span>{lang === 'bm' ? 'Hantar via WhatsApp' : 'Send via WhatsApp'}</span>
+            <span>{s.gr_send_whatsapp}</span>
           </button>
 
           <button
             onClick={openLink}
             className="w-full py-3 rounded-xl bg-[var(--surface-2)] text-[var(--text-soft)] text-sm font-medium transition-all active:scale-95 flex items-center justify-center gap-1.5"
           >
-            🔗 {lang === 'bm' ? 'Buka Link Review' : 'Open Review Link'}
+            🔗 {s.gr_open_link}
           </button>
         </div>
       )}
 
       {!reviewUrl && isOwner && (
         <div className="text-center py-4 text-sm text-[var(--text-muted)]">
-          ⚠️ {lang === 'bm' ? 'Tetapkan link review dahulu (⚙️ di atas)' : 'Set review link first (⚙️ above)'}
+          ⚠️ {s.gr_set_link_hint}
         </div>
       )}
 
@@ -265,10 +253,10 @@ export default function GoogleReviewPage() {
           <div className="px-4 py-3 border-b border-[var(--border)] flex items-center justify-between">
             <h3 className="font-bold text-sm text-[var(--text)]">{s.gr_today_log}</h3>
             <button
-              onClick={() => { if (confirm(lang === 'bm' ? 'Padam semua log hari ini?' : 'Delete all logs today?')) setLogs([]) }}
+              onClick={() => { if (confirm(s.gr_delete_all_confirm)) setLogs([]) }}
               className="text-xs text-red-500 hover:text-red-700 transition-colors"
             >
-              {lang === 'bm' ? 'Padam Semua' : 'Delete All'}
+              {s.gr_delete_all}
             </button>
           </div>
           <div className="divide-y divide-[var(--border)]">
