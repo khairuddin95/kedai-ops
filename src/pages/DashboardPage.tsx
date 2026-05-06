@@ -302,12 +302,12 @@ function TaskTab({ range }: { range: DateRange }) {
           {[
             { icon: '🍳', label: 'Kitchen', value: kitchenGroups, bg: 'bg-orange-50 dark:bg-orange-900/20', color: 'text-orange-600' },
             { icon: '🛎️', label: 'Service', value: serviceGroups, bg: 'bg-sky-50 dark:bg-sky-900/20',    color: 'text-sky-600' },
-            { icon: '🌐', label: lang === 'bm' ? 'Semua' : 'All', value: allGroups, bg: 'bg-[var(--surface-2)]', color: 'text-[var(--text)]' },
+            { icon: '🌐', label: s.all, value: allGroups, bg: 'bg-[var(--surface-2)]', color: 'text-[var(--text)]' },
           ].map(d => (
             <div key={d.label} className={`${d.bg} rounded-xl p-3 border border-[var(--border)] text-center`}>
               <div className="text-xl mb-1">{d.icon}</div>
               <div className={`font-mono text-2xl font-extrabold ${d.color}`}>{d.value}</div>
-              <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{d.label} {lang === 'bm' ? 'kumpulan' : 'groups'}</div>
+              <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{d.label} {s.dash_groups}</div>
             </div>
           ))}
         </div>
@@ -409,9 +409,7 @@ function TaskTab({ range }: { range: DateRange }) {
           <div>
             <div className="font-semibold text-sm text-amber-800 dark:text-amber-400 mb-1">{s.ai_insight}</div>
             <p className="text-sm text-amber-700 dark:text-amber-300">
-              {lang === 'bm'
-                ? `Tugasan '${stats.insightTask}' diflag ${stats.insightCount}x dalam tempoh ini.`
-                : `Task '${stats.insightTask}' flagged ${stats.insightCount}x in this period.`}
+              {`${s.dash_flagged_prefix} '${stats.insightTask}' ${s.dash_flagged_suffix} ${stats.insightCount}x ${s.dash_flagged_times}`}
             </p>
           </div>
         </div>
@@ -421,7 +419,7 @@ function TaskTab({ range }: { range: DateRange }) {
           <div>
             <div className="font-semibold text-sm text-emerald-800 dark:text-emerald-400 mb-1">{s.ai_insight}</div>
             <p className="text-sm text-emerald-700 dark:text-emerald-300">
-              {lang === 'bm' ? 'Tiada tugasan diflag. Prestasi baik!' : 'No flagged tasks. Performance is good!'}
+              {s.dash_no_flags}
             </p>
           </div>
         </div>
@@ -525,7 +523,7 @@ function MaintenanceTab({ range }: { range: DateRange }) {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <p className="text-sm text-[var(--text-muted)]">{stats.total} {state.lang === 'bm' ? 'laporan' : 'reports'} {s.in_range}</p>
+        <p className="text-sm text-[var(--text-muted)]">{stats.total} {s.dash_reports} {s.in_range}</p>
         <button onClick={() => navigate('/maintenance')} className="text-sm text-brand-600 hover:underline">
           → {s.maintenance_report}
         </button>
@@ -741,12 +739,13 @@ type Tab = 'tasks' | 'maintenance'
 export default function DashboardPage() {
   const { state } = useApp()
   const lang = state.lang
+  const s = STRINGS[lang]
   const [tab, setTab] = useState<Tab>('tasks')
   const [range, setRange] = useState<DateRange>(() => buildRange('7d'))
 
   const tabs: { id: Tab; label: string; icon: string }[] = [
-    { id: 'tasks',       label: lang === 'bm' ? 'Tugasan' : 'Tasks',          icon: '📊' },
-    { id: 'maintenance', label: lang === 'bm' ? 'Selenggara' : 'Maintenance', icon: '🔧' },
+    { id: 'tasks',       label: s.dash_tab_tasks,       icon: '📊' },
+    { id: 'maintenance', label: s.dash_tab_maintenance, icon: '🔧' },
   ]
 
   return (
