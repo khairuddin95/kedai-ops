@@ -109,12 +109,8 @@ export default function SchedulePage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h2 className="text-xl font-bold text-[var(--text)]">
-            📅 {lang === 'bm' ? 'Jadual Shift Mingguan' : 'Weekly Shift Schedule'}
-          </h2>
-          <p className="text-sm text-[var(--text-muted)] mt-0.5">
-            {lang === 'bm' ? 'Tap sel untuk tukar shift. Disimpan automatik.' : 'Tap a cell to change shift. Auto-saved.'}
-          </p>
+          <h2 className="text-xl font-bold text-[var(--text)]">📅 {s.sched_title}</h2>
+          <p className="text-sm text-[var(--text-muted)] mt-0.5">{s.sched_hint}</p>
         </div>
         {branches.length > 0 && (
           <select
@@ -122,7 +118,7 @@ export default function SchedulePage() {
             onChange={e => setFilterBranch(e.target.value)}
             className="bg-[var(--surface-2)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-brand-400"
           >
-            <option value="">{lang === 'bm' ? 'Semua Cawangan' : 'All Branches'}</option>
+            <option value="">{s.sched_all_branches}</option>
             {branches.filter(b => b.status === 'active').map(b => (
               <option key={b.id} value={b.name}>{b.name}</option>
             ))}
@@ -139,7 +135,7 @@ export default function SchedulePage() {
 
       {/* Department tabs */}
       <div className="flex gap-1 p-1 bg-[var(--surface-2)] rounded-xl">
-        {([['all', '🌐', lang === 'bm' ? 'Semua' : 'All'], ['kitchen', '🍳', 'Kitchen'], ['service', '🛎️', 'Service']] as const).map(([id, icon, label]) => (
+        {([['all', '🌐', s.all], ['kitchen', '🍳', 'Kitchen'], ['service', '🛎️', 'Service']] as const).map(([id, icon, label]) => (
           <button
             key={id}
             onClick={() => setFilterDept(id)}
@@ -156,20 +152,18 @@ export default function SchedulePage() {
       <div className="flex items-center gap-4 text-xs text-[var(--text-muted)] flex-wrap">
         <span className="flex items-center gap-1.5">
           <span className="w-4 h-4 rounded bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-[10px]">☀️</span>
-          {lang === 'bm' ? 'Shift Pagi' : 'Morning Shift'}
+          {s.sched_legend_morning}
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-4 h-4 rounded bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-[10px]">🌙</span>
-          {lang === 'bm' ? 'Shift Petang' : 'Evening Shift'}
+          {s.sched_legend_evening}
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-4 h-4 rounded bg-[var(--surface-2)] flex items-center justify-center text-[10px] text-[var(--text-muted)]">—</span>
-          {lang === 'bm' ? 'Rehat / Tiada' : 'Off / None'}
+          {s.sched_legend_off}
         </span>
         <span className="text-[var(--text-muted)]">|</span>
-        <span className="font-semibold text-brand-600">
-          {lang === 'bm' ? 'Hari ini ditebalkan' : 'Today is bold'}
-        </span>
+        <span className="font-semibold text-brand-600">{s.sched_legend_today}</span>
       </div>
 
       {/* Grid */}
@@ -179,7 +173,7 @@ export default function SchedulePage() {
             <thead>
               <tr className="border-b border-[var(--border)]">
                 <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-muted)] w-40 sticky left-0 bg-[var(--surface)] z-10">
-                  {lang === 'bm' ? 'Nama' : 'Name'}
+                  {s.sched_col_name}
                 </th>
                 {DAY_ORDER.map((dow, i) => (
                   <th
@@ -202,7 +196,7 @@ export default function SchedulePage() {
               {staffOnly.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-12 text-center text-sm text-[var(--text-muted)]">
-                    {lang === 'bm' ? 'Tiada staff ditemui.' : 'No staff found.'}
+                    {s.sched_no_staff}
                   </td>
                 </tr>
               ) : staffOnly.map((user, idx) => (
@@ -236,9 +230,9 @@ export default function SchedulePage() {
                           onClick={() => handleCell(user, dow)}
                           disabled={isSaving}
                           title={
-                            shift === null ? (lang === 'bm' ? 'Rehat — klik untuk Pagi' : 'Off — click for Morning')
-                            : shift === 'morning' ? (lang === 'bm' ? 'Pagi — klik untuk Petang' : 'Morning — click for Evening')
-                            : (lang === 'bm' ? 'Petang — klik untuk Rehat' : 'Evening — click for Off')
+                            shift === null ? s.sched_cell_off
+                            : shift === 'morning' ? s.sched_cell_morning
+                            : s.sched_cell_evening
                           }
                           className={`w-10 h-10 rounded-lg flex items-center justify-center mx-auto transition-all active:scale-90 ${
                             isSaving ? 'opacity-50' :
@@ -271,9 +265,9 @@ export default function SchedulePage() {
         return (
           <div className="grid grid-cols-3 gap-3">
             {[
-              { icon: '☀️', label: lang === 'bm' ? 'Pagi Hari Ini' : 'Morning Today',  value: morningCount, color: 'text-amber-600',   bg: 'bg-amber-50 dark:bg-amber-900/20' },
-              { icon: '🌙', label: lang === 'bm' ? 'Petang Hari Ini' : 'Evening Today', value: eveningCount, color: 'text-indigo-600',  bg: 'bg-indigo-50 dark:bg-indigo-900/20' },
-              { icon: '—',  label: lang === 'bm' ? 'Rehat / Belum Set' : 'Off / Unset', value: offCount,     color: 'text-[var(--text-muted)]', bg: 'bg-[var(--surface-2)]' },
+              { icon: '☀️', label: s.sched_morning_today, value: morningCount, color: 'text-amber-600',          bg: 'bg-amber-50 dark:bg-amber-900/20' },
+              { icon: '🌙', label: s.sched_evening_today, value: eveningCount, color: 'text-indigo-600',         bg: 'bg-indigo-50 dark:bg-indigo-900/20' },
+              { icon: '—',  label: s.sched_off_today,     value: offCount,     color: 'text-[var(--text-muted)]', bg: 'bg-[var(--surface-2)]' },
             ].map(stat => (
               <div key={stat.label} className={`${stat.bg} rounded-xl p-3 border border-[var(--border)] text-center`}>
                 <div className="text-xl mb-1">{stat.icon}</div>
