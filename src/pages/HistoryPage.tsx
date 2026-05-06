@@ -109,7 +109,7 @@ export default function HistoryPage() {
                 )}
                 {sub.supervisorComment && (
                   <div>
-                    <p className="text-xs font-semibold text-[var(--text-muted)] mb-1">💬 {lang === 'bm' ? 'Komen Supervisor' : 'Supervisor Comment'}</p>
+                    <p className="text-xs font-semibold text-[var(--text-muted)] mb-1">💬 {s.supervisor_comment}</p>
                     <p className="text-sm text-[var(--text)] bg-[var(--surface-2)] rounded-md px-3 py-2">{sub.supervisorComment}</p>
                   </div>
                 )}

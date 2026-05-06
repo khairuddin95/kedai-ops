@@ -132,7 +132,7 @@ export default function ReviewPage() {
                   className="md:hidden flex items-center gap-1 text-brand-600 text-sm font-medium mb-3"
                   onClick={() => setSelected(null)}
                 >
-                  ‹ {lang === 'bm' ? 'Kembali' : 'Back'}
+                  ‹ {s.back}
                 </button>
                 <div className="flex items-center gap-3 mb-3">
                   <Avatar emoji={selected.staffAvatar} size="lg" name={selected.staffName} />
@@ -196,7 +196,7 @@ export default function ReviewPage() {
 
                 {selected.supervisorComment && (
                   <div>
-                    <p className="text-xs font-semibold text-[var(--text-muted)] mb-1">💬 {s.add_comment}</p>
+                    <p className="text-xs font-semibold text-[var(--text-muted)] mb-1">💬 {s.supervisor_comment}</p>
                     <p className="text-sm bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-2 text-[var(--text)]">{selected.supervisorComment}</p>
                   </div>
                 )}
