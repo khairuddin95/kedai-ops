@@ -89,7 +89,7 @@ export default function SchedulePage() {
         ...prev,
         [user.id]: { ...(prev[user.id] ?? {}), [dayOfWeek]: current },
       }))
-      setErrorMsg(lang === 'bm' ? 'Gagal simpan jadual. Cuba lagi.' : 'Failed to save schedule. Try again.')
+      setErrorMsg(s.save_failed)
       setTimeout(() => setErrorMsg(''), 3000)
     }
   }

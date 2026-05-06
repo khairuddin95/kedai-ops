@@ -106,7 +106,7 @@ export default function TaskDetailPage() {
     }
 
     if (uploadFailed && task.requiresPhoto && uploadedUrls.length === 0) {
-      setSubmitError(lang === 'bm' ? 'Gagal muat naik foto. Cuba lagi.' : 'Photo upload failed. Try again.')
+      setSubmitError(s.photo_upload_failed)
       setSub(false)
       return
     }
@@ -130,7 +130,7 @@ export default function TaskDetailPage() {
     }
     const ok = await submitTask(sub)
     if (!ok) {
-      setSubmitError(lang === 'bm' ? 'Gagal hantar tugasan. Cuba lagi.' : 'Failed to submit task. Try again.')
+      setSubmitError(s.task_submit_failed)
       setSub(false)
       return
     }
