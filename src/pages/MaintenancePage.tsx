@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useApp } from '../context/AppContext'
 import { STRINGS, langLocale } from '../utils/i18n'
 import { supabaseConfigured } from '../lib/supabase'
@@ -169,13 +169,15 @@ export default function MaintenancePage() {
     setReports(prev => prev.filter(r => r.id !== id))
   }
 
-  const filtered = filterStatus === 'all' ? reports : reports.filter(r => r.status === filterStatus)
-  const counts = {
-    all: reports.length,
-    open: reports.filter(r => r.status === 'open').length,
-    in_progress: reports.filter(r => r.status === 'in_progress').length,
-    resolved: reports.filter(r => r.status === 'resolved').length,
-  }
+  const { filtered, counts } = useMemo(() => ({
+    filtered: filterStatus === 'all' ? reports : reports.filter(r => r.status === filterStatus),
+    counts: {
+      all:         reports.length,
+      open:        reports.filter(r => r.status === 'open').length,
+      in_progress: reports.filter(r => r.status === 'in_progress').length,
+      resolved:    reports.filter(r => r.status === 'resolved').length,
+    },
+  }), [reports, filterStatus])
 
   const filterPills: { key: MaintenanceStatus | 'all'; label: string }[] = [
     { key: 'all',         label: `${s.all} (${counts.all})` },

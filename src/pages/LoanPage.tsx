@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useApp } from '../context/AppContext'
 import { STRINGS, langLocale } from '../utils/i18n'
 import { supabaseConfigured } from '../lib/supabase'
@@ -119,16 +119,21 @@ export default function LoanPage() {
   const isOverdue = (r: LoanRequest) =>
     r.dueDate && r.status === 'approved' && new Date(r.dueDate) < new Date()
 
-  const filtered = filterStatus === 'all' ? loans : loans.filter(r => r.status === filterStatus)
-  const counts = {
-    all: loans.length,
-    pending:  loans.filter(r => r.status === 'pending').length,
-    approved: loans.filter(r => r.status === 'approved').length,
-    rejected: loans.filter(r => r.status === 'rejected').length,
-    returned: loans.filter(r => r.status === 'returned').length,
-  }
-
-  const overdueCount = loans.filter(isOverdue).length
+  const { filtered, counts, overdueCount } = useMemo(() => {
+    const now = new Date()
+    const isOD = (r: LoanRequest) => r.dueDate && r.status === 'approved' && new Date(r.dueDate) < now
+    return {
+      filtered:     filterStatus === 'all' ? loans : loans.filter(r => r.status === filterStatus),
+      counts: {
+        all:      loans.length,
+        pending:  loans.filter(r => r.status === 'pending').length,
+        approved: loans.filter(r => r.status === 'approved').length,
+        rejected: loans.filter(r => r.status === 'rejected').length,
+        returned: loans.filter(r => r.status === 'returned').length,
+      },
+      overdueCount: loans.filter(isOD).length,
+    }
+  }, [loans, filterStatus])
 
   const pills: { key: LoanStatus | 'all'; label: string }[] = [
     { key: 'all',      label: `${s.all} (${counts.all})` },
