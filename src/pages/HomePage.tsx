@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
-import { STRINGS } from '../utils/i18n'
+import { STRINGS, langLocale } from '../utils/i18n'
 import Card from '../components/ui/Card'
 import ProgressBar from '../components/ui/ProgressBar'
 import { TaskStatusBadge } from '../components/ui/Badge'
@@ -77,7 +77,7 @@ export default function HomePage() {
     g.tasks.map(t => ({ ...t, groupId: g.id, groupTitle: g.title, groupColor: g.color, groupIcon: g.icon }))
   )
 
-  const today = new Date().toLocaleDateString(lang === 'bm' ? 'ms-MY' : 'en-MY', {
+  const today = new Date().toLocaleDateString(langLocale(lang), {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
   })
 

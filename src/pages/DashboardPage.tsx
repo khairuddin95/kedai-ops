@@ -5,7 +5,7 @@ import {
   PieChart, Pie,
 } from 'recharts'
 import { useApp } from '../context/AppContext'
-import { STRINGS } from '../utils/i18n'
+import { STRINGS, langLocale } from '../utils/i18n'
 import { supabaseConfigured } from '../lib/supabase'
 import * as db from '../lib/db'
 import Card from '../components/ui/Card'
@@ -50,7 +50,7 @@ function fromDateInput(s: string): Date {
 function fmtRange(r: DateRange, lang: Lang) {
   const sameDay = isSameDay(r.start, r.end)
   const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' }
-  const locale = lang === 'bm' ? 'ms-MY' : 'en-MY'
+  const locale = langLocale(lang)
   if (sameDay) return r.start.toLocaleDateString(locale, { ...opts, year: 'numeric' })
   return `${r.start.toLocaleDateString(locale, opts)} – ${r.end.toLocaleDateString(locale, opts)}`
 }
@@ -179,7 +179,7 @@ const STATUS_COLOR = { open: '#3b82f6', in_progress: '#f59e0b', resolved: '#10b9
 function bucketByDay(range: DateRange, lang: Lang) {
   const days = rangeDays(range)
   const dayKeys = lang === 'en' ? DAY_KEYS_EN : DAY_KEYS_BM
-  const locale = lang === 'bm' ? 'ms-MY' : 'en-MY'
+  const locale = langLocale(lang)
 
   if (days <= 60) {
     return Array.from({ length: days }, (_, i) => {

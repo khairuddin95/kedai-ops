@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useApp } from '../context/AppContext'
-import { STRINGS } from '../utils/i18n'
+import { STRINGS, langLocale } from '../utils/i18n'
 import { supabaseConfigured } from '../lib/supabase'
 import * as db from '../lib/db'
 import Card from '../components/ui/Card'
@@ -370,7 +370,7 @@ export default function MaintenancePage() {
                     <span className="text-xs text-[var(--text-muted)]">{r.reportedByAvatar} {r.reportedByName}</span>
                     <span className="text-xs text-[var(--text-muted)]">📍 {r.branch}</span>
                     <span className="text-xs text-[var(--text-muted)]">
-                      {r.reportedAt.toLocaleDateString(state.lang === 'bm' ? 'ms-MY' : 'en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {r.reportedAt.toLocaleDateString(langLocale(state.lang), { day: 'numeric', month: 'short', year: 'numeric' })}
                     </span>
                   </div>
                 </div>
@@ -415,7 +415,7 @@ export default function MaintenancePage() {
                   {/* Resolved timestamp */}
                   {r.resolvedAt && (
                     <p className="text-xs text-emerald-600 dark:text-emerald-400">
-                      ✅ {s.resolved_on} {r.resolvedAt.toLocaleDateString(state.lang === 'bm' ? 'ms-MY' : 'en-MY', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      ✅ {s.resolved_on} {r.resolvedAt.toLocaleDateString(langLocale(state.lang), { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                     </p>
                   )}
 

@@ -846,3 +846,7 @@ export const STRINGS: Record<Lang, Record<string, string>> = {
 export function t(key: string, lang: Lang): string {
   return STRINGS[lang]?.[key] ?? STRINGS.bm[key] ?? key
 }
+
+export function langLocale(lang: Lang): string {
+  return lang === 'bm' ? 'ms-MY' : 'en-MY'
+}

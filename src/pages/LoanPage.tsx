@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext'
-import { STRINGS } from '../utils/i18n'
+import { STRINGS, langLocale } from '../utils/i18n'
 import { supabaseConfigured } from '../lib/supabase'
 import * as db from '../lib/db'
 import Card from '../components/ui/Card'
@@ -139,7 +139,7 @@ export default function LoanPage() {
   ]
 
   const fmtDate = (d: Date) =>
-    d.toLocaleDateString(state.lang === 'bm' ? 'ms-MY' : 'en-MY', { day: 'numeric', month: 'short', year: 'numeric' })
+    d.toLocaleDateString(langLocale(state.lang), { day: 'numeric', month: 'short', year: 'numeric' })
 
   return (
     <div className="space-y-5 max-w-3xl">
@@ -336,7 +336,7 @@ export default function LoanPage() {
                       <div>
                         <span className="text-xs text-[var(--text-muted)]">{s.loan_due_date}</span>
                         <p className={`mt-0.5 font-medium ${isOverdue(r) ? 'text-red-500' : 'text-[var(--text)]'}`}>
-                          {new Date(r.dueDate).toLocaleDateString(state.lang === 'bm' ? 'ms-MY' : 'en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          {new Date(r.dueDate).toLocaleDateString(langLocale(state.lang), { day: 'numeric', month: 'short', year: 'numeric' })}
                         </p>
                       </div>
                     )}
