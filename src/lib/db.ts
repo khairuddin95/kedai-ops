@@ -264,15 +264,17 @@ export async function fetchTaskGroups(): Promise<TaskGroup[] | null> {
 
 // ─── Submissions ─────────────────────────────────────────────
 
-export async function fetchSubmissions(days = 90): Promise<Submission[] | null> {
+export async function fetchSubmissions(days = 90, branch?: string): Promise<Submission[] | null> {
   if (!supabase) return null
   const since = new Date()
   since.setDate(since.getDate() - days)
-  const { data, error } = await supabase
+  let q = supabase
     .from('submissions')
     .select('*')
     .gte('submitted_at', since.toISOString())
     .order('submitted_at', { ascending: false })
+  if (branch) q = q.eq('branch', branch)
+  const { data, error } = await q
   if (error) { console.error('[db] fetchSubmissions:', error); return null }
   return (data ?? []).map(submissionFromDb)
 }

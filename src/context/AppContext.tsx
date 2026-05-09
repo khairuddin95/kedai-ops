@@ -217,7 +217,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     ;(async () => {
       const [states, subs, groups] = await Promise.all([
         db.fetchTaskStates(state.user!.id),
-        db.fetchSubmissions(),
+        db.fetchSubmissions(90, state.user!.role === 'supervisor' ? state.user!.branch : undefined),
         db.fetchTaskGroups(),
       ])
       if (states)  dispatch({ type: 'SET_TASK_STATES',  states })
