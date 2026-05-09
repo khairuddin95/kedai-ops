@@ -74,7 +74,7 @@ function navItems(role: string, lang: 'bm' | 'en'): NavItem[] {
   if (role === 'supervisor') return [
     { to: '/dashboard',     icon: '📊', label: 'Dashboard' },
     { to: '/review',        icon: '🔍', label: s.review },
-    { to: '/schedule',      icon: '📅', label: lang === 'bm' ? 'Jadual' : 'Schedule' },
+    { to: '/schedule',      icon: '📅', label: s.nav_schedule },
     { to: '/maintenance',   icon: '🔧', label: s.maintenance },
     { to: '/loans',         icon: '📦', label: s.loan_item },
     { to: '/tasks-admin',   icon: '📋', label: s.task_mgmt },
@@ -85,7 +85,7 @@ function navItems(role: string, lang: 'bm' | 'en'): NavItem[] {
   return [
     { to: '/dashboard',     icon: '📊', label: 'Dashboard' },
     { to: '/review',        icon: '🔍', label: s.review },
-    { to: '/schedule',      icon: '📅', label: lang === 'bm' ? 'Jadual' : 'Schedule' },
+    { to: '/schedule',      icon: '📅', label: s.nav_schedule },
     { to: '/maintenance',   icon: '🔧', label: s.maintenance },
     { to: '/loans',         icon: '📦', label: s.loan_item },
     { to: '/tasks-admin',   icon: '📋', label: s.task_mgmt },
@@ -163,7 +163,7 @@ export default function AppShell() {
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-[var(--text-soft)] hover:bg-[var(--surface-2)] transition-colors"
           >
             <span>🌐</span>
-            <span>{lang === 'bm' ? 'English' : 'Bahasa'}</span>
+            <span>{s.lang_switch}</span>
           </button>
           <NotifToggle />
         </div>
@@ -302,7 +302,7 @@ export default function AppShell() {
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-[var(--text-soft)] bg-[var(--surface-2)] hover:bg-[var(--surface-3,#e5e7eb)] transition-colors"
               >
                 <span>🌐</span>
-                <span>{lang === 'bm' ? 'English' : 'Bahasa'}</span>
+                <span>{s.lang_switch}</span>
               </button>
               <button
                 onClick={handleLogout}

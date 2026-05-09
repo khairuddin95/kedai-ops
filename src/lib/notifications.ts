@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { TaskGroup, TaskState } from '../types'
+import { STRINGS } from '../utils/i18n'
 
 export type NotifPermission = 'default' | 'granted' | 'denied' | 'unsupported'
 
@@ -166,10 +167,9 @@ export function useTaskReminders({ taskGroups, taskStates, enabled, lang }: UseT
       const notified = getNotifiedSet()
       for (const g of list) {
         if (notified.has(g.id)) continue
-        const title = lang === 'bm' ? '⏰ Tugasan Belum Disiapkan' : '⏰ Pending Tasks'
-        const body = lang === 'bm'
-          ? `${g.title} (${g.time}) — ${g.pendingCount} tugasan belum disiapkan`
-          : `${g.title} (${g.time}) — ${g.pendingCount} tasks not done yet`
+        const s = STRINGS[lang]
+        const title = s.notif_overdue_title
+        const body = `${g.title} (${g.time}) — ${g.pendingCount} ${s.notif_overdue_body_suffix}`
         sendNotification(title, body, `group_${g.id}_${new Date().toDateString()}`)
         markNotified(g.id)
       }
