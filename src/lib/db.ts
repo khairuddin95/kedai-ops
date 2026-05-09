@@ -264,7 +264,7 @@ export async function fetchTaskGroups(): Promise<TaskGroup[] | null> {
 
 // ─── Submissions ─────────────────────────────────────────────
 
-export async function fetchSubmissions(days = 30): Promise<Submission[] | null> {
+export async function fetchSubmissions(days = 90): Promise<Submission[] | null> {
   if (!supabase) return null
   const since = new Date()
   since.setDate(since.getDate() - days)
