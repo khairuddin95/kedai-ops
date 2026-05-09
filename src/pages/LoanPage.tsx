@@ -40,7 +40,8 @@ export default function LoanPage() {
   useEffect(() => {
     ;(async () => {
       setLoading(true)
-      const data = supabaseConfigured ? await db.fetchLoanRequests() : []
+      const branch = user.role === 'supervisor' ? user.branch : undefined
+      const data = supabaseConfigured ? await db.fetchLoanRequests(branch) : []
       setLoans(data ?? [])
       const initNotes: Record<string, string> = {}
       for (const r of data ?? []) initNotes[r.id] = r.notes ?? ''

@@ -524,12 +524,11 @@ export async function uploadTaskPhoto(file: File, submissionId: string): Promise
   return data.publicUrl
 }
 
-export async function fetchMaintenanceReports(): Promise<MaintenanceReport[] | null> {
+export async function fetchMaintenanceReports(branch?: string): Promise<MaintenanceReport[] | null> {
   if (!supabase) return null
-  const { data, error } = await supabase
-    .from('maintenance_reports')
-    .select('*')
-    .order('reported_at', { ascending: false })
+  let q = supabase.from('maintenance_reports').select('*').order('reported_at', { ascending: false })
+  if (branch) q = q.eq('branch', branch)
+  const { data, error } = await q
   if (error) { console.error('[db] fetchMaintenanceReports:', error); return null }
   return (data ?? []).map(maintFromDb)
 }
@@ -599,12 +598,11 @@ function loanFromDb(r: {
   }
 }
 
-export async function fetchLoanRequests(): Promise<LoanRequest[] | null> {
+export async function fetchLoanRequests(branch?: string): Promise<LoanRequest[] | null> {
   if (!supabase) return null
-  const { data, error } = await supabase
-    .from('loan_requests')
-    .select('*')
-    .order('requested_at', { ascending: false })
+  let q = supabase.from('loan_requests').select('*').order('requested_at', { ascending: false })
+  if (branch) q = q.eq('branch', branch)
+  const { data, error } = await q
   if (error) { console.error('[db] fetchLoanRequests:', error); return null }
   return (data ?? []).map(loanFromDb)
 }

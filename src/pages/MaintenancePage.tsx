@@ -59,7 +59,8 @@ export default function MaintenancePage() {
   useEffect(() => {
     ;(async () => {
       setLoading(true)
-      const data = supabaseConfigured ? await db.fetchMaintenanceReports() : []
+      const branch = user.role === 'supervisor' ? user.branch : undefined
+      const data = supabaseConfigured ? await db.fetchMaintenanceReports(branch) : []
       setReports(data ?? [])
       const initNotes: Record<string, string> = {}
       for (const r of data ?? []) initNotes[r.id] = r.supervisorNotes ?? ''
