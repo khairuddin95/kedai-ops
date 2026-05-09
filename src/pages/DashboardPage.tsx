@@ -439,7 +439,8 @@ function MaintenanceTab({ range }: { range: DateRange }) {
   useEffect(() => {
     ;(async () => {
       setLoading(true)
-      const data = supabaseConfigured ? await db.fetchMaintenanceReports() : []
+      const branch = state.user?.role === 'supervisor' ? state.user.branch : undefined
+      const data = supabaseConfigured ? await db.fetchMaintenanceReports(branch) : []
       setReports(data ?? [])
       setLoading(false)
     })()
