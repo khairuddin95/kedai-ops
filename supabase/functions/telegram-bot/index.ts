@@ -1,140 +1,97 @@
-/**
- * KedaiOps — Telegram Bot
- * Supabase Edge Function (Deno runtime)
- *
- * Setup:
- *  1. Create bot via @BotFather → get BOT_TOKEN
- *  2. Set env vars in Supabase Dashboard → Settings → Edge Functions → Secrets:
- *       TELEGRAM_BOT_TOKEN     = <token from BotFather>
- *       TELEGRAM_WEBHOOK_SECRET = <any random string, used to authenticate
- *                                  webhook requests from Telegram>
- *  3. Deploy:  supabase functions deploy telegram-bot
- *  4. Register webhook with the secret (run once):
- *       curl "https://api.telegram.org/bot<TOKEN>/setWebhook?\
- *         url=https://<project-ref>.supabase.co/functions/v1/telegram-bot&\
- *         secret_token=<TELEGRAM_WEBHOOK_SECRET>"
- *
- * Staff registration (self-service):
- *   Staff messages the bot: /daftar <username>
- *
- * Commands:
- *   /start | /menu | 0   → main menu
- *   /bantuan | /help     → help
- *   1                    → list pending tasks today
- *   2 <num>              → mark task done  (e.g. "2 1")
- *   3                    → daily report  (supervisor / owner only)
- */
+// KedaiOps — Telegram Bot v2 (inline keyboards)
+// Deploy: supabase functions deploy telegram-bot
+// Secrets: TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+// Staff self-registration: /daftar <username>
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-// ─── Config ──────────────────────────────────────────────────
-const BOT_TOKEN       = Deno.env.get('TELEGRAM_BOT_TOKEN')      ?? ''
-const WEBHOOK_SECRET  = Deno.env.get('TELEGRAM_WEBHOOK_SECRET') ?? ''
-const SUPABASE_URL    = Deno.env.get('SUPABASE_URL')            ?? ''
-const SUPABASE_KEY    = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+const BOT_TOKEN      = Deno.env.get('TELEGRAM_BOT_TOKEN')        ?? ''
+const WEBHOOK_SECRET = Deno.env.get('TELEGRAM_WEBHOOK_SECRET')   ?? ''
+const SUPABASE_URL   = Deno.env.get('SUPABASE_URL')              ?? ''
+const SUPABASE_KEY   = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 
 const TG = `https://api.telegram.org/bot${BOT_TOKEN}`
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY)
 
-// ─── Telegram helpers ────────────────────────────────────────
-// Escape special chars for MarkdownV2. The current bot uses 'Markdown' (legacy)
-// which only treats _ * ` [ as special, but those are still enough to break
-// formatting if a task title contains them. We escape conservatively.
-function esc(text: string): string {
-  return text.replace(/([_*`\[\]])/g, '\\$1')
+// ── Telegram API helpers ──────────────────────────────────────
+type Btn = { text: string; callback_data: string }
+type KB  = Btn[][]
+
+async function tg(method: string, body: Record<string, unknown>): Promise<void> {
+  const r = await fetch(`${TG}/${method}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!r.ok) console.error(`[tg] ${method}:`, await r.text())
 }
 
-async function send(chatId: number, text: string): Promise<void> {
-  try {
-    const res = await fetch(`${TG}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown' }),
-    })
-    if (!res.ok) console.error('[tg] send failed:', res.status, await res.text())
-  } catch (err) {
-    console.error('[tg] send error:', err)
-  }
+function mkb(kb?: KB) {
+  return kb ? { reply_markup: { inline_keyboard: kb } } : {}
 }
 
-// ─── DB types + helpers ──────────────────────────────────────
-type UserRow = {
-  id: string; name: string; role: string; branch: string;
-  avatar: string; username: string; department: string | null;
-}
+const send = (chat: number, text: string, kb?: KB) =>
+  tg('sendMessage', { chat_id: chat, text, parse_mode: 'Markdown', ...mkb(kb) })
 
-async function getByTelegramId(telegramId: string): Promise<UserRow | null> {
-  const { data } = await supabase
-    .from('users')
+const edit = (chat: number, msg: number, text: string, kb?: KB) =>
+  tg('editMessageText', { chat_id: chat, message_id: msg, text, parse_mode: 'Markdown', ...mkb(kb) })
+
+const ack  = (id: string) => tg('answerCallbackQuery', { callback_query_id: id })
+
+function esc(s: string) { return s.replace(/([_*`[\]])/g, '\\$1') }
+
+// ── DB types & helpers ────────────────────────────────────────
+type UserRow  = { id: string; name: string; role: string; branch: string; avatar: string; username: string; department: string | null; telegram_id?: string | null }
+type FlatTask = { id: string; title: string; groupTitle: string; requiresPhoto: boolean; status: string }
+
+async function getByTid(tid: string): Promise<UserRow | null> {
+  const { data } = await sb.from('users')
     .select('id,name,role,branch,avatar,username,department')
-    .eq('telegram_id', telegramId)
-    .single()
+    .eq('telegram_id', tid).single()
   return data
 }
 
-async function getByUsername(username: string): Promise<(UserRow & { telegram_id: string | null }) | null> {
-  const { data } = await supabase
-    .from('users')
+async function getByUsername(u: string): Promise<UserRow | null> {
+  const { data } = await sb.from('users')
     .select('id,name,role,branch,avatar,username,department,telegram_id')
-    .eq('username', username.toLowerCase().trim())
-    .single()
+    .eq('username', u.toLowerCase().trim()).single()
   return data
 }
 
-async function linkTelegram(userId: string, telegramId: string): Promise<boolean> {
-  const { error } = await supabase
-    .from('users').update({ telegram_id: telegramId }).eq('id', userId)
-  if (error) console.error('[tg] linkTelegram:', error)
+async function linkTelegram(uid: string, tid: string): Promise<boolean> {
+  const { error } = await sb.from('users').update({ telegram_id: tid }).eq('id', uid)
   return !error
 }
 
-async function getUserTodayShift(userId: string): Promise<'morning' | 'evening' | null> {
-  const day = new Date().getDay()
-  const { data } = await supabase
-    .from('schedules').select('shift_id')
-    .eq('user_id', userId).eq('day_of_week', day).maybeSingle()
-  return (data?.shift_id as 'morning' | 'evening') ?? null
+async function getShift(uid: string): Promise<'morning' | 'evening'> {
+  const { data } = await sb.from('schedules').select('shift_id')
+    .eq('user_id', uid).eq('day_of_week', new Date().getDay()).maybeSingle()
+  return (data?.shift_id as 'morning' | 'evening') ?? (new Date().getHours() < 15 ? 'morning' : 'evening')
 }
 
-interface FlatTask {
-  id: string; title: string; groupTitle: string; status: string;
-  requiresPhoto: boolean;
-}
-
-async function getPendingTasks(user: UserRow): Promise<FlatTask[]> {
+async function getPending(user: UserRow): Promise<FlatTask[]> {
   const isSunday = new Date().getDay() === 0
+  const shift    = await getShift(user.id)
 
-  // Determine the user's current shift: schedule first, then time-of-day fallback.
-  // This mirrors what the web app does for staff at login.
-  const scheduledShift = await getUserTodayShift(user.id)
-  const currentShift = scheduledShift ?? (new Date().getHours() < 15 ? 'morning' : 'evening')
-
-  const { data: groups, error: gErr } = await supabase
-    .from('task_groups')
-    .select('id, title, shift, frequency, department, tasks(id, title, requires_photo, sort_order)')
+  const { data: groups } = await sb.from('task_groups')
+    .select('id,title,shift,frequency,department,tasks(id,title,requires_photo,sort_order)')
     .order('sort_order')
-  if (gErr) console.error('[tg] getPendingTasks groups:', gErr)
 
-  const { data: states, error: sErr } = await supabase
-    .from('task_states').select('task_id, status').eq('user_id', user.id)
-  if (sErr) console.error('[tg] getPendingTasks states:', sErr)
-  const stateMap = new Map((states ?? []).map(s => [s.task_id, s.status]))
+  const { data: states } = await sb.from('task_states')
+    .select('task_id,status').eq('user_id', user.id)
+  const sm = new Map((states ?? []).map(s => [s.task_id, s.status]))
 
-  type GroupShape = {
-    id: string; title: string; shift: string; frequency: string;
-    department: string | null;
+  type G = {
+    title: string; shift: string; frequency: string; department: string | null;
     tasks: { id: string; title: string; requires_photo: boolean; sort_order: number }[]
   }
 
-  return ((groups ?? []) as GroupShape[])
+  return ((groups ?? []) as G[])
     .filter(g => {
-      // Frequency: weekly groups only show on Sunday
       if (g.frequency === 'weekly' && !isSunday) return false
-      // Shift: 'both' always shows; otherwise must match user's current shift
-      if (g.shift && g.shift !== 'both' && g.shift !== currentShift) return false
-      // Department: 'all' / unset always shows; otherwise must match user's dept
-      const groupDept = g.department ?? 'all'
-      if (groupDept !== 'all' && user.department && groupDept !== user.department) return false
+      if (g.shift && g.shift !== 'both' && g.shift !== shift) return false
+      const d = g.department ?? 'all'
+      if (d !== 'all' && user.department && d !== user.department) return false
       return true
     })
     .flatMap(g =>
@@ -143,7 +100,7 @@ async function getPendingTasks(user: UserRow): Promise<FlatTask[]> {
         .map(t => ({
           id: t.id, title: t.title, groupTitle: g.title,
           requiresPhoto: t.requires_photo ?? false,
-          status: stateMap.get(t.id) ?? 'pending',
+          status: sm.get(t.id) ?? 'pending',
         }))
     )
     .filter(t => t.status === 'pending' || t.status === 'in_progress')
@@ -151,207 +108,365 @@ async function getPendingTasks(user: UserRow): Promise<FlatTask[]> {
 
 async function markDone(user: UserRow, task: FlatTask): Promise<boolean> {
   const now = new Date().toISOString()
-  const scheduledShift = await getUserTodayShift(user.id)
-  const shiftId = scheduledShift ?? (new Date().getHours() < 15 ? 'morning' : 'evening')
-
-  const { error: stateErr } = await supabase.from('task_states').upsert({
+  const shift = await getShift(user.id)
+  const { error: e1 } = await sb.from('task_states').upsert({
     user_id: user.id, task_id: task.id, status: 'done',
     checked_items: [], photos: [], notes: 'Disiapkan via Telegram',
     rating: 0, updated_at: now,
   }, { onConflict: 'user_id,task_id' })
-  if (stateErr) { console.error('[tg] markDone state:', stateErr); return false }
-
-  const { error: subErr } = await supabase.from('submissions').insert({
+  if (e1) return false
+  const { error: e2 } = await sb.from('submissions').insert({
     task_id: task.id, task_title: task.title,
     staff_id: user.id, staff_name: user.name, staff_avatar: user.avatar,
-    branch: user.branch,
-    shift_id: shiftId,
+    branch: user.branch, shift_id: shift,
     checked_items: [], photos: [], notes: 'Disiapkan via Telegram',
     rating: 0, status: 'pending',
     group_title: task.groupTitle, group_color: null,
   })
-  if (subErr) { console.error('[tg] markDone submission:', subErr); return false }
-  return true
+  return !e2
 }
 
-// ─── Message handler ─────────────────────────────────────────
-async function handle(chatId: number, telegramId: string, text: string): Promise<void> {
+// ── Screen builders ───────────────────────────────────────────
+function menuScreen(user: UserRow): { text: string; kb: KB } {
+  const sup = user.role !== 'staff'
+  return {
+    text: [
+      `Assalamualaikum, *${esc(user.name)}* ${user.avatar}`,
+      `_${esc(user.branch)} · ${user.role}_`,
+      '',
+      '📱 *Menu Utama KedaiOps*',
+    ].join('\n'),
+    kb: [
+      [{ text: '📋 Tugasan Hari Ini', callback_data: 'tasks' }],
+      ...(sup
+        ? [
+            [{ text: '⏳ Semak Submission', callback_data: 'review' }],
+            [{ text: '📊 Laporan Hari Ini',  callback_data: 'report' }],
+          ]
+        : []),
+      [{ text: 'ℹ️ Bantuan', callback_data: 'help' }],
+    ],
+  }
+}
+
+async function tasksScreen(user: UserRow): Promise<{ text: string; kb: KB }> {
+  const pending = await getPending(user)
+  if (pending.length === 0) {
+    return {
+      text: '✅ *Semua tugasan hari ini telah siap!*\n\n_Tahniah, kerja bagus!_ 🎉',
+      kb: [[{ text: '🏠 Menu Utama', callback_data: 'menu' }]],
+    }
+  }
+  const hasPhoto = pending.some(t => t.requiresPhoto)
+  const text = [
+    `📋 *Tugasan Belum Siap* (${pending.length})`,
+    '',
+    ...pending.map((t, i) =>
+      `${i + 1}. *${esc(t.title)}*${t.requiresPhoto ? ' 📷' : ''}\n   _${esc(t.groupTitle)}_`
+    ),
+    ...(hasPhoto ? ['', '📷 _Bertanda perlu foto — guna aplikasi web._'] : []),
+  ].join('\n')
+  const kb: KB = [
+    ...pending.slice(0, 8).map(t =>
+      t.requiresPhoto
+        ? [{ text: `📷 ${t.title.slice(0, 32)}`, callback_data: `photo_warn:${t.id}` }]
+        : [{ text: `✅ ${t.title.slice(0, 32)}`, callback_data: `task_detail:${t.id}` }]
+    ),
+    [{ text: '🏠 Menu Utama', callback_data: 'menu' }],
+  ]
+  return { text, kb }
+}
+
+async function taskDetailScreen(user: UserRow, taskId: string): Promise<{ text: string; kb: KB }> {
+  const all  = await getPending(user)
+  const task = all.find(t => t.id === taskId)
+  if (!task) {
+    return {
+      text: '❌ Tugasan tidak dijumpai atau sudah siap.',
+      kb: [[{ text: '📋 Tugasan', callback_data: 'tasks' }]],
+    }
+  }
+  return {
+    text: [
+      `📌 *${esc(task.title)}*`,
+      '',
+      `📂 Kumpulan: _${esc(task.groupTitle)}_`,
+      `📷 Perlu foto: ${task.requiresPhoto ? 'Ya' : 'Tidak'}`,
+      '',
+      task.requiresPhoto
+        ? '_Tugasan ini perlu foto. Sila buka aplikasi web._'
+        : '_Tekan butang di bawah untuk tandakan siap._',
+    ].join('\n'),
+    kb: task.requiresPhoto
+      ? [[{ text: '🔙 Kembali', callback_data: 'tasks' }]]
+      : [
+          [{ text: '✅ Tandakan Siap', callback_data: `task_done:${taskId}` }],
+          [{ text: '🔙 Kembali',       callback_data: 'tasks' }],
+        ],
+  }
+}
+
+async function reportScreen(user: UserRow): Promise<{ text: string; kb: KB }> {
+  const start = new Date(); start.setHours(0, 0, 0, 0)
+  let q = sb.from('submissions').select('status')
+    .gte('submitted_at', start.toISOString())
+  if (user.role === 'supervisor') q = q.eq('branch', user.branch)
+  const { data: subs } = await q
+  const all      = subs ?? []
+  const pending  = all.filter(s => s.status === 'pending').length
+  const approved = all.filter(s => s.status === 'approved').length
+  const rejected = all.filter(s => s.status === 'rejected').length
+  const scope    = user.role === 'owner' ? 'Semua cawangan' : esc(user.branch)
+  const date     = new Date().toLocaleDateString('ms-MY', { weekday: 'long', day: 'numeric', month: 'long' })
+  return {
+    text: [
+      '📊 *Laporan Hari Ini*',
+      `_${date}_`,
+      `_${scope}_`,
+      '',
+      `📋 Jumlah: *${all.length}*`,
+      `⏳ Menunggu: *${pending}*`,
+      `✅ Diluluskan: *${approved}*`,
+      ...(rejected > 0 ? [`❌ Ditolak: *${rejected}*`] : []),
+    ].join('\n'),
+    kb: [
+      [{ text: '⏳ Semak Submission', callback_data: 'review' }],
+      [{ text: '🏠 Menu Utama',        callback_data: 'menu' }],
+    ],
+  }
+}
+
+type SubRow = { id: string; task_title: string; staff_name: string; branch: string; group_title: string; notes: string; status: string; submitted_at: string; photos: unknown[] }
+
+async function getPendingSubs(user: UserRow): Promise<SubRow[]> {
+  let q = sb.from('submissions')
+    .select('id,task_title,staff_name,branch,group_title,notes,status,submitted_at,photos')
+    .eq('status', 'pending')
+    .order('submitted_at', { ascending: true })
+    .limit(10)
+  if (user.role === 'supervisor') q = q.eq('branch', user.branch)
+  const { data } = await q
+  return (data ?? []) as SubRow[]
+}
+
+async function reviewScreen(user: UserRow): Promise<{ text: string; kb: KB }> {
+  const subs = await getPendingSubs(user)
+  if (subs.length === 0) {
+    return {
+      text: '✅ *Tiada submission menunggu semakan.*',
+      kb: [[{ text: '🏠 Menu Utama', callback_data: 'menu' }]],
+    }
+  }
+  const showBranch = user.role === 'owner'
+  return {
+    text: [
+      `⏳ *Submission Menunggu Semakan* (${subs.length})`,
+      '',
+      ...subs.map((s, i) =>
+        `${i + 1}. *${esc(s.task_title)}*\n   👤 ${esc(s.staff_name)}${showBranch ? ` · ${esc(s.branch)}` : ''}`
+      ),
+      '',
+      '_Pilih submission untuk semak._',
+    ].join('\n'),
+    kb: [
+      ...subs.slice(0, 5).map(s => ([
+        { text: `👁 ${s.staff_name} — ${s.task_title.slice(0, 24)}`, callback_data: `sub_detail:${s.id}` },
+      ])),
+      [{ text: '🏠 Menu Utama', callback_data: 'menu' }],
+    ],
+  }
+}
+
+async function subDetailScreen(user: UserRow, subId: string): Promise<{ text: string; kb: KB }> {
+  const { data: sub } = await sb.from('submissions')
+    .select('id,task_title,staff_name,branch,group_title,notes,status,submitted_at,photos')
+    .eq('id', subId).single()
+  if (!sub || sub.status !== 'pending') {
+    return {
+      text: '❌ Submission tidak dijumpai atau sudah diproses.',
+      kb: [[{ text: '⏳ Kembali', callback_data: 'review' }]],
+    }
+  }
+  const time     = new Date(sub.submitted_at).toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' })
+  const hasPhoto = Array.isArray(sub.photos) && sub.photos.length > 0
+  return {
+    text: [
+      `📄 *${esc(sub.task_title)}*`,
+      '',
+      `👤 Staff: *${esc(sub.staff_name)}*`,
+      `📂 Kumpulan: _${esc(sub.group_title)}_`,
+      `🏢 Cawangan: _${esc(sub.branch)}_`,
+      `🕒 Dihantar: _${time}_`,
+      ...(sub.notes && sub.notes !== 'Disiapkan via Telegram'
+        ? [`📝 Nota: _${esc(sub.notes)}_`] : []),
+      ...(hasPhoto ? [`📷 ${sub.photos.length} foto tersedia`] : []),
+    ].join('\n'),
+    kb: [
+      [
+        { text: '✅ Lulus',  callback_data: `sub_approve:${subId}` },
+        { text: '❌ Tolak',  callback_data: `sub_reject:${subId}` },
+      ],
+      [{ text: '🔙 Kembali', callback_data: 'review' }],
+    ],
+  }
+}
+
+// ── Message handler ───────────────────────────────────────────
+async function onMessage(chat: number, tid: string, text: string): Promise<void> {
   const lower = text.trim().toLowerCase()
 
-  // ── Registration ─────────────────────────────────────────
+  // Registration (works before login)
   if (lower.startsWith('/daftar')) {
-    const parts = text.trim().split(/\s+/)
-    const uname = parts[1]
+    const uname = text.trim().split(/\s+/)[1]
     if (!uname) {
-      await send(chatId, '⚠️ Sila masukkan username anda.\n\nContoh: `/daftar ahmad123`')
-      return
+      await send(chat, '⚠️ Sila masukkan username.\n\nContoh: `/daftar ahmad123`'); return
     }
     const existing = await getByUsername(uname)
     if (!existing) {
-      await send(chatId, `❌ Username *${esc(uname)}* tidak dijumpai.\n\nSemak semula dengan pengurus.`)
-      return
+      await send(chat, `❌ Username *${esc(uname)}* tidak dijumpai.\n\nSemak semula dengan pengurus.`); return
     }
-    if (existing.telegram_id && existing.telegram_id !== telegramId) {
-      await send(chatId, '⚠️ Akaun ini sudah dipautkan ke Telegram lain.\n\nHubungi pengurus untuk buang pautan lama.')
-      return
+    if (existing.telegram_id && existing.telegram_id !== tid) {
+      await send(chat, '⚠️ Akaun ini sudah dipautkan ke Telegram lain.\n\nHubungi pengurus.'); return
     }
-    const ok = await linkTelegram(existing.id, telegramId)
-    if (!ok) { await send(chatId, '❌ Gagal mendaftar. Sila cuba lagi.'); return }
-    await send(chatId,
-      `✅ Berjaya! Akaun *${esc(existing.name)}* (${esc(existing.role)}) kini dipautkan.\n\n` +
-      `Taip /menu untuk mula.`
-    )
+    const ok = await linkTelegram(existing.id, tid)
+    if (!ok) { await send(chat, '❌ Gagal mendaftar. Sila cuba lagi.'); return }
+    const { text: t, kb } = menuScreen(existing as UserRow)
+    await send(chat, `✅ Berjaya! Akaun *${esc(existing.name)}* dipautkan.\n\n` + t, kb)
     return
   }
 
-  // ── Help (works without registration) ─────────────────────
   if (lower === '/bantuan' || lower === '/help') {
-    await send(chatId, [
+    await send(chat, [
       '🆘 *Bantuan KedaiOps*',
       '',
-      '*Daftar:*',
-      '`/daftar <username>` — pautkan Telegram dengan akaun KedaiOps',
+      '`/daftar <username>` — daftar akaun',
+      '`/menu` — buka menu utama',
       '',
-      '*Selepas daftar:*',
-      '`/menu` atau `0` — menu utama',
-      '`1` — senarai tugasan belum siap',
-      '`2 <nombor>` — tandakan task siap (cth. `2 1`)',
-      '`3` — laporan hari ini (supervisor & owner)',
-      '',
-      '_Tugasan yang perlu foto, sila gunakan aplikasi web._',
-    ].join('\n'))
+      '_Semua pilihan tersedia melalui butang di mesej._',
+    ].join('\n'), [[{ text: '🏠 Menu Utama', callback_data: 'menu' }]])
     return
   }
 
-  // ── Require registration for everything else ──────────────
-  const user = await getByTelegramId(telegramId)
+  const user = await getByTid(tid)
   if (!user) {
-    await send(chatId,
+    await send(chat,
       '👋 Selamat datang ke *KedaiOps Bot*!\n\n' +
-      'Sila daftar dengan menaip:\n`/daftar <username>`\n\n' +
-      'Contoh: `/daftar ahmad123`\n\n' +
-      'Taip `/bantuan` untuk maklumat lanjut.'
-    )
+      'Sila daftar:\n`/daftar <username>`\n\nContoh: `/daftar ahmad123`')
     return
   }
 
-  // ── Main menu ────────────────────────────────────────────
-  if (['/start', '/menu', '0', ''].includes(lower)) {
-    await send(chatId, [
-      `Assalamualaikum, *${esc(user.name)}* ${user.avatar}`,
-      '',
-      '📋 *Menu KedaiOps*',
-      '',
-      '1️⃣  Tugasan hari ini',
-      '2️⃣  Tandakan task siap  _(taip: 2 1)_',
-      ...(user.role !== 'staff' ? ['3️⃣  Laporan hari ini'] : []),
-      '',
-      '_Balas nombor untuk pilih._',
-      '_Taip /bantuan untuk bantuan._',
-    ].join('\n'))
-    return
-  }
-
-  // ── List pending tasks ───────────────────────────────────
-  if (lower === '1' || lower === '/tugasan') {
-    const pending = await getPendingTasks(user)
-    if (pending.length === 0) {
-      await send(chatId, '✅ Semua tugasan hari ini telah siap! Taip /menu untuk kembali.')
-      return
-    }
-    await send(chatId, [
-      `📋 *Tugasan Belum Siap* (${pending.length})`,
-      '',
-      ...pending.map((t, i) => {
-        const photo = t.requiresPhoto ? ' 📷' : ''
-        return `${i + 1}. *${esc(t.title)}*${photo}\n   _${esc(t.groupTitle)}_`
-      }),
-      '',
-      'Taip *2 \\[nombor\\]* untuk tandakan siap.',
-      'Contoh: *2 1*',
-      '',
-      '_Tugasan dengan 📷 perlu foto — sila gunakan aplikasi web._',
-    ].join('\n'))
-    return
-  }
-
-  // ── Mark task done ───────────────────────────────────────
-  if (/^2\s+\d+$/.test(lower)) {
-    const idx = parseInt(lower.split(/\s+/)[1]) - 1
-    const pending = await getPendingTasks(user)
-    if (isNaN(idx) || idx < 0 || idx >= pending.length) {
-      await send(chatId, `❌ Nombor tidak sah. Ada *${pending.length}* tugasan belum siap.\n\nContoh: *2 1*`)
-      return
-    }
-    const task = pending[idx]
-    if (task.requiresPhoto) {
-      await send(chatId,
-        `📷 *${esc(task.title)}* memerlukan foto bukti.\n\n` +
-        `Sila buka aplikasi web untuk muat naik foto dan hantar tugasan ini.`
-      )
-      return
-    }
-    const ok = await markDone(user, task)
-    if (!ok) {
-      await send(chatId, '❌ Gagal tandakan task. Sila cuba lagi.')
-      return
-    }
-    await send(chatId, `✅ *${esc(task.title)}* telah ditandakan siap!\n\nTaip *1* untuk lihat senarai terkini.`)
-    return
-  }
-
-  // ── Daily report (supervisor/owner) ──────────────────────
-  if ((lower === '3' || lower === '/laporan') && user.role !== 'staff') {
-    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
-
-    // Owners see all branches; supervisors see only their own branch
-    let q = supabase
-      .from('submissions').select('status, branch')
-      .gte('submitted_at', todayStart.toISOString())
-    if (user.role === 'supervisor') q = q.eq('branch', user.branch)
-
-    const { data: subs, error } = await q
-    if (error) {
-      console.error('[tg] /laporan:', error)
-      await send(chatId, '❌ Gagal ambil laporan. Sila cuba lagi.')
-      return
-    }
-    const all      = subs ?? []
-    const pending  = all.filter(s => s.status === 'pending').length
-    const approved = all.filter(s => s.status === 'approved').length
-    const rejected = all.filter(s => s.status === 'rejected').length
-    const scope    = user.role === 'owner'
-      ? 'Semua cawangan'
-      : esc(user.branch)
-    await send(chatId, [
-      `📊 *Laporan Hari Ini*`,
-      `_${new Date().toLocaleDateString('ms-MY', { weekday: 'long', day: 'numeric', month: 'long' })}_`,
-      '',
-      `📋 Jumlah submission: *${all.length}*`,
-      `⏳ Menunggu semak:    *${pending}*`,
-      `✅ Diluluskan:         *${approved}*`,
-      ...(rejected > 0 ? [`❌ Ditolak:             *${rejected}*`] : []),
-      '',
-      `_${scope}_`,
-    ].join('\n'))
-    return
-  }
-
-  // ── Fallback ─────────────────────────────────────────────
-  await send(chatId, 'Taip /menu untuk lihat pilihan, atau /bantuan untuk bantuan.')
+  const { text: t, kb } = menuScreen(user)
+  await send(chat, t, kb)
 }
 
-// ─── Entry point ─────────────────────────────────────────────
+// ── Callback handler ──────────────────────────────────────────
+async function onCallback(
+  chat: number, msgId: number, cqId: string, tid: string, data: string
+): Promise<void> {
+  await ack(cqId)
+
+  const user = await getByTid(tid)
+  if (!user) {
+    await edit(chat, msgId, '⚠️ Akaun tidak dijumpai. Sila daftar: `/daftar <username>`'); return
+  }
+
+  if (data === 'menu') {
+    const { text, kb } = menuScreen(user)
+    await edit(chat, msgId, text, kb); return
+  }
+
+  if (data === 'tasks') {
+    const { text, kb } = await tasksScreen(user)
+    await edit(chat, msgId, text, kb); return
+  }
+
+  if (data.startsWith('task_detail:')) {
+    const { text, kb } = await taskDetailScreen(user, data.slice(12))
+    await edit(chat, msgId, text, kb); return
+  }
+
+  if (data.startsWith('task_done:')) {
+    const taskId  = data.slice(10)
+    const all     = await getPending(user)
+    const task    = all.find(t => t.id === taskId)
+    if (!task) {
+      await edit(chat, msgId, '❌ Tugasan tidak dijumpai.',
+        [[{ text: '📋 Tugasan', callback_data: 'tasks' }]]); return
+    }
+    const ok = await markDone(user, task)
+    const { text, kb } = await tasksScreen(user)
+    await edit(chat, msgId,
+      ok ? `✅ *${esc(task.title)}* telah ditandakan siap!\n\n` + text
+         : `❌ Gagal tandakan. Cuba lagi.\n\n` + text,
+      kb); return
+  }
+
+  if (data.startsWith('photo_warn:')) {
+    await edit(chat, msgId,
+      '📷 Tugasan ini memerlukan foto bukti.\n\nSila buka *aplikasi web KedaiOps* untuk hantar tugasan ini.',
+      [[{ text: '🔙 Kembali', callback_data: 'tasks' }]]); return
+  }
+
+  if (data === 'report') {
+    if (user.role === 'staff') {
+      await edit(chat, msgId, '⚠️ Anda tidak mempunyai akses.',
+        [[{ text: '🏠 Menu Utama', callback_data: 'menu' }]]); return
+    }
+    const { text, kb } = await reportScreen(user)
+    await edit(chat, msgId, text, kb); return
+  }
+
+  if (data === 'review') {
+    if (user.role === 'staff') {
+      await edit(chat, msgId, '⚠️ Anda tidak mempunyai akses.',
+        [[{ text: '🏠 Menu Utama', callback_data: 'menu' }]]); return
+    }
+    const { text, kb } = await reviewScreen(user)
+    await edit(chat, msgId, text, kb); return
+  }
+
+  if (data.startsWith('sub_detail:')) {
+    if (user.role === 'staff') return
+    const { text, kb } = await subDetailScreen(user, data.slice(11))
+    await edit(chat, msgId, text, kb); return
+  }
+
+  if (data.startsWith('sub_approve:') || data.startsWith('sub_reject:')) {
+    if (user.role === 'staff') return
+    const isApprove = data.startsWith('sub_approve:')
+    const subId  = data.slice(isApprove ? 12 : 11)
+    const status = isApprove ? 'approved' : 'rejected'
+    const { error } = await sb.from('submissions')
+      .update({ status, supervisor_comment: null })
+      .eq('id', subId)
+    const { text, kb } = await reviewScreen(user)
+    const prefix = isApprove ? '✅ *Submission diluluskan!*' : '❌ *Submission ditolak.*'
+    await edit(chat, msgId,
+      !error ? `${prefix}\n\n` + text : '❌ Gagal proses. Cuba lagi.',
+      !error ? kb : [[{ text: '⏳ Cuba lagi', callback_data: 'review' }]]); return
+  }
+
+  if (data === 'help') {
+    await edit(chat, msgId, [
+      '🆘 *Bantuan KedaiOps*',
+      '',
+      '📋 *Tugasan Hari Ini* — senarai tugasan belum siap',
+      '⏳ *Semak Submission* — luluskan / tolak (supervisor & owner)',
+      '📊 *Laporan Hari Ini* — ringkasan hari ini (supervisor & owner)',
+      '',
+      'Tugasan bertanda 📷 perlu diselesaikan di aplikasi web.',
+    ].join('\n'),
+    [[{ text: '🏠 Menu Utama', callback_data: 'menu' }]]); return
+  }
+}
+
+// ── Entry point ───────────────────────────────────────────────
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response('OK', { status: 200 })
 
-  // Webhook authentication: Telegram sends this header on every update if we
-  // registered the webhook with `secret_token`. Without this check, anyone
-  // who guesses the function URL can POST fake updates and impersonate users.
   if (WEBHOOK_SECRET) {
-    const got = req.headers.get('X-Telegram-Bot-Api-Secret-Token')
-    if (got !== WEBHOOK_SECRET) {
-      console.warn('[tg] rejected request with bad secret token')
+    if (req.headers.get('X-Telegram-Bot-Api-Secret-Token') !== WEBHOOK_SECRET) {
+      console.warn('[tg] rejected bad secret')
       return new Response('Forbidden', { status: 403 })
     }
   } else {
@@ -360,12 +475,24 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json()
-    const msg  = body?.message ?? body?.edited_message
+
+    if (body?.callback_query) {
+      const cq   = body.callback_query
+      const chat = cq.message?.chat?.id
+      const msgId = cq.message?.message_id
+      const tid  = String(cq.from?.id)
+      if (chat && msgId && tid) {
+        await onCallback(chat, msgId, cq.id, tid, cq.data ?? '')
+      }
+      return new Response('OK', { status: 200 })
+    }
+
+    const msg = body?.message ?? body?.edited_message
     if (msg?.text && msg?.chat?.id && msg?.from?.id) {
-      await handle(msg.chat.id, String(msg.from.id), msg.text)
+      await onMessage(msg.chat.id, String(msg.from.id), msg.text)
     }
   } catch (e) {
-    console.error('[tg] top-level error:', e)
+    console.error('[tg] error:', e)
   }
 
   return new Response('OK', { status: 200 })
