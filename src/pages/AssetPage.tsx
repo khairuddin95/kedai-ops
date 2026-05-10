@@ -60,7 +60,7 @@ export default function AssetPage() {
     ;(async () => {
       setLoading(true)
       const [assetData, branchData] = await Promise.all([
-        supabaseConfigured ? db.fetchAssets()    : Promise.resolve(MOCK_ASSETS),
+        supabaseConfigured ? db.fetchAssets(state.user?.role === 'supervisor' ? state.user.branch : undefined) : Promise.resolve(MOCK_ASSETS),
         supabaseConfigured ? db.fetchBranches()  : Promise.resolve(MOCK_BRANCHES),
       ])
       setAssets(assetData ?? MOCK_ASSETS)

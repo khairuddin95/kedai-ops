@@ -66,7 +66,9 @@ export default function SchedulePage() {
         supabaseConfigured ? db.fetchSchedules()  : Promise.resolve([]),
       ])
 
-      setUsers(userData ?? [])
+      const isSupervisor = state.user?.role === 'supervisor'
+      const allUsers = userData ?? []
+      setUsers(isSupervisor ? allUsers.filter(u => u.branch === state.user!.branch) : allUsers)
       setBranches(branchData ?? [])
 
       const map: Record<string, Record<number, ShiftCell>> = {}
@@ -125,7 +127,7 @@ export default function SchedulePage() {
           <h2 className="text-xl font-bold text-[var(--text)]">📅 {s.sched_title}</h2>
           <p className="text-sm text-[var(--text-muted)] mt-0.5">{s.sched_hint}</p>
         </div>
-        {branches.length > 0 && (
+        {branches.length > 0 && state.user?.role !== 'supervisor' && (
           <select
             value={filterBranch}
             onChange={e => setFilterBranch(e.target.value)}
