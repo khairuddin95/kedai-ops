@@ -40,11 +40,13 @@ export default function ReviewPage() {
   // Fetch fresh submissions whenever this page is opened
   useEffect(() => { doRefresh().then(() => setLastUpdated(new Date())) }, [doRefresh])
 
-  // Keep `selected` in sync if another reviewer approves/rejects concurrently via Realtime
+  // If another reviewer approves/rejects the selected submission concurrently via
+  // Realtime, clear it so the panel shows the "pick one" placeholder rather than
+  // stale approve/reject buttons for an already-decided submission.
   useEffect(() => {
     if (!selected) return
     const inState = state.submissions.find(s => s.id === selected.id)
-    if (inState && inState.status !== selected.status) setSelected(inState)
+    if (!inState || inState.status !== 'pending') setSelected(null)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.submissions])
 

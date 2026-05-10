@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
   PieChart, Pie,
@@ -284,6 +284,8 @@ function TaskTab({ range }: { range: DateRange }) {
     return <div className="text-center py-20 text-[var(--text-muted)] text-sm">{s.loading}</div>
   }
 
+  const pendingReview = allSubs.filter(sub => sub.status === 'pending').length
+
   const kpis = [
     { label: s.completion_rate, value: `${stats.compRate}%`,              icon: '📈', color: '#3b82f6', bg: 'bg-blue-50 dark:bg-blue-900/20' },
     { label: s.avg_rating,      value: `${stats.avgRating.toFixed(1)} ⭐`, icon: '⭐', color: '#f59e0b', bg: 'bg-amber-50 dark:bg-amber-900/20' },
@@ -311,6 +313,24 @@ function TaskTab({ range }: { range: DateRange }) {
             </div>
           ))}
         </div>
+      )}
+
+      {pendingReview > 0 && (
+        <Link
+          to="/review"
+          className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">⏳</span>
+            <div>
+              <div className="text-sm font-bold text-amber-800 dark:text-amber-300">
+                {pendingReview} {s.pending} {s.review_title.toLowerCase()}
+              </div>
+              <div className="text-xs text-amber-600 dark:text-amber-400">{s.select_submission}</div>
+            </div>
+          </div>
+          <span className="bg-amber-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">{pendingReview}</span>
+        </Link>
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
