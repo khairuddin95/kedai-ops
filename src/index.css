@@ -95,7 +95,7 @@ body {
   }
 }
 
-/* Safe-area padding for iOS bottom nav (home indicator).
+/* Safe-area padding for mobile PWA (iOS notch / home indicator).
    overscroll-behavior-y: contain prevents the scroll container from
    capturing touch events that should hit the fixed bottom nav. */
 @media (max-width: 767px) {
@@ -104,6 +104,17 @@ body {
     overscroll-behavior-y: contain;
   }
 }
+
+/* Landscape: bottom nav left/right insets (iPhone notch in landscape) */
+@media (max-width: 767px) and (orientation: landscape) {
+  .main-content {
+    padding-left:  max(1.25rem, env(safe-area-inset-left,  0px));
+    padding-right: max(1.25rem, env(safe-area-inset-right, 0px));
+  }
+}
+
+/* Prevent images/media from overflowing their container */
+img, video, svg { max-width: 100%; }
 
 /* Pin input boxes */
 .pin-box {

@@ -126,7 +126,10 @@ export default function AppShell() {
   return (
     <div className="flex h-full">
       {/* ── Sidebar (desktop) ── */}
-      <aside className="hidden md:flex flex-col w-[220px] min-w-[220px] bg-[var(--surface)] border-r border-[var(--border)] py-5">
+      <aside
+        className="hidden md:flex flex-col w-[220px] min-w-[220px] bg-[var(--surface)] border-r border-[var(--border)] pb-5"
+        style={{ paddingTop: 'max(1.25rem, env(safe-area-inset-top))' }}
+      >
         {/* Logo */}
         <div className="px-5 mb-6">
           <div className="flex items-center gap-2.5">
@@ -183,16 +186,21 @@ export default function AppShell() {
 
       {/* ── Main ── */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Topbar */}
-        <header className="h-14 bg-[var(--surface)] border-b border-[var(--border)] flex items-center px-5 gap-3 flex-shrink-0">
-          <div className="flex-1">
-            <div className="text-sm font-semibold text-[var(--text)]">
-              {state.user?.name}
-              <span className="text-xs font-normal text-[var(--text-muted)] ml-2 capitalize">{state.user?.role} · {state.user?.branch}</span>
+        {/* Topbar — paddingTop pushes content below notch/dynamic island in PWA mode */}
+        <header
+          className="bg-[var(--surface)] border-b border-[var(--border)] flex-shrink-0"
+          style={{ paddingTop: 'env(safe-area-inset-top)' }}
+        >
+          <div className="h-14 flex items-center px-5 gap-3">
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold text-[var(--text)] truncate">
+                {state.user?.name}
+                <span className="text-xs font-normal text-[var(--text-muted)] ml-2 capitalize hidden sm:inline">{state.user?.role} · {state.user?.branch}</span>
+              </div>
             </div>
-          </div>
-          <div className="md:hidden flex items-center gap-2">
-            <Avatar emoji={state.user?.avatar ?? '👤'} size="sm" />
+            <div className="md:hidden flex items-center gap-2 flex-shrink-0">
+              <Avatar emoji={state.user?.avatar ?? '👤'} size="sm" />
+            </div>
           </div>
         </header>
 

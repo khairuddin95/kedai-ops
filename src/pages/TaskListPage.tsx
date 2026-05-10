@@ -113,12 +113,12 @@ export default function TaskListPage() {
                 </div>
 
                 {/* Est time */}
-                <div className="hidden sm:block text-xs text-[var(--text-muted)] w-[110px] text-right">
+                <div className="hidden sm:block text-xs text-[var(--text-muted)] text-right flex-shrink-0">
                   {task.est} {s.min}
                 </div>
 
                 {/* Status */}
-                <div className="w-[130px] flex justify-end">
+                <div className="flex-shrink-0">
                   <TaskStatusBadge status={status} />
                 </div>
 

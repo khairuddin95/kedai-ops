@@ -298,13 +298,13 @@ function TaskTab({ range }: { range: DateRange }) {
   return (
     <div className="space-y-5">
       {(kitchenGroups > 0 || serviceGroups > 0) && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-2">
           {[
             { icon: '🍳', label: 'Kitchen', value: kitchenGroups, bg: 'bg-orange-50 dark:bg-orange-900/20', color: 'text-orange-600' },
             { icon: '🛎️', label: 'Service', value: serviceGroups, bg: 'bg-sky-50 dark:bg-sky-900/20',    color: 'text-sky-600' },
             { icon: '🌐', label: s.all, value: allGroups, bg: 'bg-[var(--surface-2)]', color: 'text-[var(--text)]' },
           ].map(d => (
-            <div key={d.label} className={`${d.bg} rounded-xl p-3 border border-[var(--border)] text-center`}>
+            <div key={d.label} className={`${d.bg} rounded-xl p-2.5 border border-[var(--border)] text-center`}>
               <div className="text-xl mb-1">{d.icon}</div>
               <div className={`font-mono text-2xl font-extrabold ${d.color}`}>{d.value}</div>
               <div className="text-[10px] text-[var(--text-muted)] mt-0.5">{d.label} {s.dash_groups}</div>

@@ -198,7 +198,7 @@ export default function LoginPage() {
   const isNew = foundUser && !foundUser.pinSet
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-[#0a0f1c] dark:via-[#111827] dark:to-[#0a0f1c] px-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-[#0a0f1c] dark:via-[#111827] dark:to-[#0a0f1c] px-4" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
       {/* Logo */}
       <div className="mb-8 text-center">
         <div className="w-16 h-16 rounded-2xl bg-brand-600 flex items-center justify-center text-white font-extrabold text-3xl mx-auto mb-3 shadow-lg">K</div>
