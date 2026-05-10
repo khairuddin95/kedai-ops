@@ -7,6 +7,19 @@ import * as db from '../lib/db'
 import type { Branch, ShiftId, User } from '../types'
 import { USERS as MOCK_USERS, BRANCHES as MOCK_BRANCHES } from '../data/mockData'
 
+// Shorten common long Malaysian name prefixes and drop "bin/binti ..."
+// so "Muhammad Farid bin Hamid" → "Mhd. Farid" and names fit in one line.
+function shortName(name: string): string {
+  return name
+    .replace(/\s+b(?:in|inti)\s+\S+(\s+\S+)*$/i, '')  // strip bin/binti ...
+    .replace(/^Muhammad\b/i,  'Mhd.')
+    .replace(/^Mohamad\b/i,   'Mhd.')
+    .replace(/^Mohammad\b/i,  'Mhd.')
+    .replace(/^Muhamad\b/i,   'Mhd.')
+    .replace(/^Mohd\.?\b/i,   'Md.')
+    .trim()
+}
+
 // Mon→Sun display order (JS day index)
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]
 const DAYS_BM   = ['Isn', 'Sel', 'Rab', 'Kha', 'Jum', 'Sab', 'Ahd']
@@ -210,8 +223,8 @@ export default function SchedulePage() {
                   <td className="px-4 py-2 sticky left-0 bg-[var(--surface)] z-10">
                     <div className="flex items-center gap-2">
                       <span className="text-lg flex-shrink-0">{user.avatar}</span>
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium text-[var(--text)] leading-tight line-clamp-2">{user.name}</div>
+                      <div className="min-w-0" title={user.name}>
+                        <div className="text-sm font-medium text-[var(--text)] leading-tight line-clamp-2">{shortName(user.name)}</div>
                         <div className="text-[10px] text-[var(--text-muted)]">@{user.username}</div>
                       </div>
                     </div>
