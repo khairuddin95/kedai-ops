@@ -5,7 +5,7 @@ import {
 import type { User, Shift, Task, TaskState, Submission, Lang, TaskGroup } from '../types'
 import { STRINGS } from '../utils/i18n'
 import { SUBMISSIONS as MOCK_SUBS, TASK_GROUPS as MOCK_GROUPS, USERS as MOCK_USERS, MOCK_PASSWORDS } from '../data/mockData'
-import { supabaseConfigured } from '../lib/supabase'
+import { supabase, supabaseConfigured } from '../lib/supabase'
 import * as db from '../lib/db'
 
 // ─── State ────────────────────────────────────────────────────
@@ -61,6 +61,7 @@ function reducer(state: AppState, action: Action): AppState {
     case 'SET_SUBMISSIONS':
       return { ...state, submissions: action.subs }
     case 'ADD_SUBMISSION':
+      if (state.submissions.some(s => s.id === action.sub.id)) return state
       return { ...state, submissions: [action.sub, ...state.submissions] }
     case 'REMOVE_SUBMISSION':
       return { ...state, submissions: state.submissions.filter(s => s.id !== action.id) }
@@ -226,6 +227,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'SET_DB_READY' })
     })()
   }, [state.user?.id])
+
+  // Realtime — submissions (supervisor & owner only, always-on so badge + OS notif work globally)
+  useEffect(() => {
+    if (!supabase || !state.user || state.user.role === 'staff') return
+    const isSupervisor = state.user.role === 'supervisor'
+    const filter = isSupervisor ? `branch=eq.${state.user.branch}` : undefined
+    const mkOpts = (event: 'INSERT' | 'UPDATE' | 'DELETE') => ({
+      event, schema: 'public' as const, table: 'submissions',
+      ...(filter ? { filter } : {}),
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mapRow = (row: any) => db.submissionFromDb(row as Parameters<typeof db.submissionFromDb>[0])
+    const channel = supabase!
+      .channel('app-submissions')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .on('postgres_changes', mkOpts('INSERT'), ({ new: row }: any) => {
+        if (!row?.id) return
+        dispatch({ type: 'ADD_SUBMISSION', sub: mapRow(row) })
+      })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .on('postgres_changes', mkOpts('UPDATE'), ({ new: row }: any) => {
+        if (!row?.id) return
+        dispatch({ type: 'UPDATE_SUBMISSION', id: row.id as string, updates: mapRow(row) })
+      })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .on('postgres_changes', mkOpts('DELETE'), ({ old: row }: any) => {
+        if (row?.id) dispatch({ type: 'REMOVE_SUBMISSION', id: row.id as string })
+      })
+      .subscribe()
+    return () => { supabase!.removeChannel(channel) }
+  }, [state.user?.id, state.user?.branch, state.user?.role, dispatch])
 
   // ── Actions ──────────────────────────────────────────────────
 

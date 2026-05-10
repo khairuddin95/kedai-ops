@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useApp } from '../../context/AppContext'
 import { STRINGS } from '../../utils/i18n'
@@ -110,6 +110,27 @@ export default function AppShell() {
   const moreItems    = items.slice(PRIMARY_COUNT)
   const [drawerOpen, setDrawerOpen] = useState(false)
 
+  const pendingCount = (role === 'supervisor' || role === 'owner')
+    ? state.submissions.filter(sub => sub.status === 'pending').length
+    : 0
+
+  // OS notification when a new pending submission arrives
+  const prevPendingRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (role === 'staff') return
+    const prev = prevPendingRef.current
+    prevPendingRef.current = pendingCount
+    if (prev !== null && pendingCount > prev) {
+      const newest = state.submissions.find(sub => sub.status === 'pending')
+      sendNotification(
+        '⏳ Submission Baru',
+        newest ? `${newest.staffName} — ${newest.taskTitle}` : 'Ada submission menunggu semakan',
+        'new_submission'
+      )
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingCount, role])
+
   const handleLogout = () => {
     dispatch({ type: 'LOGOUT' })
     navigate('/login')
@@ -146,7 +167,12 @@ export default function AppShell() {
           {items.map(item => (
             <NavLink key={item.to} to={item.to} end={item.to === '/'} className={linkClass}>
               <span className="text-base">{item.icon}</span>
-              <span>{item.label}</span>
+              <span className="flex-1">{item.label}</span>
+              {item.to === '/review' && pendingCount > 0 && (
+                <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-none">
+                  {pendingCount > 99 ? '99+' : pendingCount}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>
@@ -229,7 +255,14 @@ export default function AppShell() {
               }`
             }
           >
-            <span className="text-lg">{item.icon}</span>
+            <div className="relative">
+              <span className="text-lg">{item.icon}</span>
+              {item.to === '/review' && pendingCount > 0 && (
+                <span className="absolute -top-1 -right-1.5 bg-red-500 text-white text-[9px] font-bold px-1 rounded-full min-w-[14px] text-center leading-none py-0.5">
+                  {pendingCount > 9 ? '9+' : pendingCount}
+                </span>
+              )}
+            </div>
             <span className="truncate max-w-[52px] text-center leading-tight">{item.label}</span>
           </NavLink>
         ))}
@@ -291,7 +324,12 @@ export default function AppShell() {
                     }
                   >
                     <span className="text-xl flex-shrink-0">{item.icon}</span>
-                    <span className="truncate">{item.label}</span>
+                    <span className="flex-1 truncate">{item.label}</span>
+                    {item.to === '/review' && pendingCount > 0 && (
+                      <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-none">
+                        {pendingCount > 99 ? '99+' : pendingCount}
+                      </span>
+                    )}
                   </NavLink>
                 ))}
               </div>
