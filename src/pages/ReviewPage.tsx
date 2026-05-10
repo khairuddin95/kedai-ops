@@ -5,12 +5,14 @@ import Button from '../components/ui/Button'
 import Avatar from '../components/ui/Avatar'
 import StarRating from '../components/ui/StarRating'
 import { SubStatusBadge } from '../components/ui/Badge'
+import * as db from '../lib/db'
+import { supabaseConfigured } from '../lib/supabase'
 import type { Submission, SubmissionStatus } from '../types'
 
 type Tab = 'pending' | 'approved' | 'rejected'
 
 export default function ReviewPage() {
-  const { state, reviewSubmission } = useApp()
+  const { state, dispatch, reviewSubmission } = useApp()
   const lang = state.lang
   const s = STRINGS[lang]
   const [tab, setTab] = useState<Tab>('pending')
@@ -19,6 +21,15 @@ export default function ReviewPage() {
   const [deciding, setDeciding] = useState<SubmissionStatus | null>(null)
   const [errorMsg, setErrorMsg] = useState('')
   const [lightbox, setLightbox] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+
+  const handleRefresh = async () => {
+    if (!state.user || refreshing || !supabaseConfigured) return
+    setRefreshing(true)
+    const subs = await db.fetchSubmissions(90, state.user.role === 'supervisor' ? state.user.branch : undefined)
+    if (subs) dispatch({ type: 'SET_SUBMISSIONS', subs })
+    setRefreshing(false)
+  }
 
   const visibleSubs = state.submissions.filter(sub => sub.status === tab)
   const pending = state.submissions.filter(sub => sub.status === 'pending').length
@@ -49,19 +60,43 @@ export default function ReviewPage() {
   const showDetail = !!selected
 
   return (
-    <div className="h-full">
-      <h2 className="text-xl font-bold text-[var(--text)] mb-4">{s.review_title}</h2>
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold text-[var(--text)]">{s.review_title}</h2>
+        {supabaseConfigured && (
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[var(--text-soft)] bg-[var(--surface-2)] hover:bg-[var(--border)] transition-colors disabled:opacity-50"
+          >
+            <span className={refreshing ? 'animate-spin inline-block' : ''}>↻</span>
+            {refreshing ? 'Memuatkan…' : 'Muat Semula'}
+          </button>
+        )}
+      </div>
 
-      <div className="flex flex-col md:flex-row gap-4 md:h-[calc(100vh-180px)]">
+      <div className="review-panels flex flex-col md:flex-row gap-4">
         {/* ── Left panel (list) — hidden on mobile when detail is open ── */}
         <div className={`md:w-[380px] md:min-w-[380px] flex-col bg-[var(--surface)] border border-[var(--border)] rounded-lg overflow-hidden ${showDetail ? 'hidden md:flex' : 'flex'}`}>
           {/* Header + tabs */}
           <div className="p-4 border-b border-[var(--border)]">
             <div className="flex items-center justify-between mb-3">
               <span className="font-semibold text-[var(--text)]">{s.review_title}</span>
-              {pending > 0 && (
-                <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{pending}</span>
-              )}
+              <div className="flex items-center gap-2">
+                {pending > 0 && (
+                  <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{pending}</span>
+                )}
+                {supabaseConfigured && (
+                  <button
+                    onClick={handleRefresh}
+                    disabled={refreshing}
+                    title="Muat semula"
+                    className="w-7 h-7 flex items-center justify-center rounded-md text-[var(--text-muted)] hover:bg-[var(--surface-2)] transition-colors disabled:opacity-50 text-sm"
+                  >
+                    <span className={refreshing ? 'animate-spin inline-block' : ''}>↻</span>
+                  </button>
+                )}
+              </div>
             </div>
             <div className="flex gap-1">
               {tabs.map(t => (

@@ -113,6 +113,14 @@ body {
   }
 }
 
+/* Review page panels — correct height accounting for header + safe-area-inset-top.
+   Uses 100dvh (dynamic viewport height) so it works in both browser and PWA mode. */
+@media (min-width: 768px) {
+  .review-panels {
+    height: calc(100dvh - env(safe-area-inset-top, 0px) - 9rem);
+  }
+}
+
 /* Prevent images/media from overflowing their container */
 img, video, svg { max-width: 100%; }
 
