@@ -95,6 +95,16 @@ body {
   }
 }
 
+/* Safe-area padding for iOS bottom nav (home indicator).
+   overscroll-behavior-y: contain prevents the scroll container from
+   capturing touch events that should hit the fixed bottom nav. */
+@media (max-width: 767px) {
+  .main-content {
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px)) !important;
+    overscroll-behavior-y: contain;
+  }
+}
+
 /* Pin input boxes */
 .pin-box {
   width: 56px; height: 68px;

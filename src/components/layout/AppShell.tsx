@@ -197,7 +197,7 @@ export default function AppShell() {
         </header>
 
         {/* Content */}
-        <main className="flex-1 overflow-y-auto p-5 pb-24 md:pb-5">
+        <main className="flex-1 overflow-y-auto p-5 pb-24 md:pb-5 main-content">
           <div className="max-w-[1100px] mx-auto animate-fadeIn">
             <Outlet />
           </div>
@@ -205,12 +205,16 @@ export default function AppShell() {
       </div>
 
       {/* ── Bottom Nav (mobile) ── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[var(--surface)] border-t border-[var(--border)] flex z-40">
+      <nav
+        className="md:hidden fixed bottom-0 left-0 right-0 bg-[var(--surface)] border-t border-[var(--border)] flex z-40"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
         {primaryItems.map(item => (
           <NavLink
             key={item.to}
             to={item.to}
             end={item.to === '/'}
+            style={{ touchAction: 'manipulation' }}
             className={({ isActive }) =>
               `flex-1 flex flex-col items-center py-2.5 gap-0.5 text-xs font-medium transition-colors ${
                 isActive ? 'text-brand-600' : 'text-[var(--text-muted)]'
@@ -225,6 +229,7 @@ export default function AppShell() {
         {/* More button — always visible for settings access */}
         <button
           onClick={() => setDrawerOpen(true)}
+          style={{ touchAction: 'manipulation' }}
           className={`flex-1 flex flex-col items-center py-2.5 gap-0.5 text-xs font-medium transition-colors ${
             drawerOpen ? 'text-brand-600' : 'text-[var(--text-muted)]'
           }`}
@@ -244,7 +249,7 @@ export default function AppShell() {
           />
 
           {/* Sheet */}
-          <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[var(--surface)] rounded-t-2xl shadow-2xl border-t border-[var(--border)] pb-safe">
+          <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[var(--surface)] rounded-t-2xl shadow-2xl border-t border-[var(--border)]" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
             {/* Handle */}
             <div className="flex justify-center pt-3 pb-1">
               <div className="w-10 h-1 rounded-full bg-[var(--border-2)]" />
@@ -268,6 +273,7 @@ export default function AppShell() {
                     to={item.to}
                     end={item.to === '/'}
                     onClick={() => setDrawerOpen(false)}
+                    style={{ touchAction: 'manipulation' }}
                     className={({ isActive }) =>
                       `flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-colors ${
                         isActive

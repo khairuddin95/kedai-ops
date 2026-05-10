@@ -517,10 +517,10 @@ export async function uploadMaintenancePhoto(file: File, reportId: string): Prom
 export async function uploadTaskPhoto(file: File, submissionId: string): Promise<string | null> {
   if (!supabase) return null
   const ext = file.name.split('.').pop() ?? 'jpg'
-  const path = `tasks/${submissionId}/${Date.now()}.${ext}`
-  const { error } = await supabase.storage.from('maintenance-photos').upload(path, file, { upsert: false })
+  const path = `${submissionId}/${Date.now()}.${ext}`
+  const { error } = await supabase.storage.from('task-photos').upload(path, file, { upsert: false })
   if (error) { console.error('[db] uploadTaskPhoto:', error); return null }
-  const { data } = supabase.storage.from('maintenance-photos').getPublicUrl(path)
+  const { data } = supabase.storage.from('task-photos').getPublicUrl(path)
   return data.publicUrl
 }
 

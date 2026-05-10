@@ -67,7 +67,10 @@ function AppRoutes() {
 export default function App() {
   return (
     <AppProvider>
-      <BrowserRouter>
+      {/* unstable_useTransitions={false} keeps navigation synchronous (v6 behaviour).
+          The v7 default wraps history state in startTransition, which defers the
+          route re-render and can make navigation appear to require a page refresh. */}
+      <BrowserRouter unstable_useTransitions={false}>
         <AppRoutes />
       </BrowserRouter>
     </AppProvider>
