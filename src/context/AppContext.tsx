@@ -2,7 +2,8 @@ import {
   createContext, useContext, useReducer, useEffect, useCallback,
   type ReactNode,
 } from 'react'
-import type { User, Shift, Task, TaskState, Submission, Lang, TaskGroup } from '../types'
+import type { CustomRole, User, Shift, Task, TaskState, Submission, Lang, TaskGroup } from '../types'
+import { resolveFeatures } from '../utils/permissions'
 import { STRINGS } from '../utils/i18n'
 import { SUBMISSIONS as MOCK_SUBS, TASK_GROUPS as MOCK_GROUPS, USERS as MOCK_USERS, MOCK_PASSWORDS } from '../data/mockData'
 import { supabase, supabaseConfigured } from '../lib/supabase'
@@ -16,6 +17,7 @@ interface AppState {
   taskStates:   Record<string, TaskState>
   submissions:  Submission[]
   taskGroups:   TaskGroup[]
+  customRoles:  CustomRole[]
   lang:         Lang
   dark:         boolean
   dbReady:      boolean   // true once initial DB load completed (or fell back)
@@ -38,10 +40,14 @@ type Action =
   | { type: 'ADD_TASK';        groupId: string; task: Task }
   | { type: 'UPDATE_TASK';     groupId: string; taskId: string; updates: Partial<Task> }
   | { type: 'DELETE_TASK';     groupId: string; taskId: string }
-  | { type: 'SET_LANG';        lang: Lang }
+  | { type: 'SET_LANG';         lang: Lang }
   | { type: 'TOGGLE_DARK' }
   | { type: 'SET_DB_READY' }
-  | { type: 'UPDATE_USER';     updates: Partial<User> }
+  | { type: 'UPDATE_USER';      updates: Partial<User> }
+  | { type: 'SET_CUSTOM_ROLES'; roles: CustomRole[] }
+  | { type: 'ADD_CUSTOM_ROLE';  role: CustomRole }
+  | { type: 'UPDATE_CUSTOM_ROLE'; id: string; updates: Partial<CustomRole> }
+  | { type: 'DELETE_CUSTOM_ROLE'; id: string }
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -107,6 +113,14 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, dbReady: true }
     case 'UPDATE_USER':
       return { ...state, user: state.user ? { ...state.user, ...action.updates } : state.user }
+    case 'SET_CUSTOM_ROLES':
+      return { ...state, customRoles: action.roles }
+    case 'ADD_CUSTOM_ROLE':
+      return { ...state, customRoles: [...state.customRoles, action.role].sort((a, b) => a.name.localeCompare(b.name)) }
+    case 'UPDATE_CUSTOM_ROLE':
+      return { ...state, customRoles: state.customRoles.map(r => r.id === action.id ? { ...r, ...action.updates } : r) }
+    case 'DELETE_CUSTOM_ROLE':
+      return { ...state, customRoles: state.customRoles.filter(r => r.id !== action.id) }
     default:
       return state
   }
@@ -133,6 +147,7 @@ const init: AppState = {
   taskStates:  {},
   submissions: MOCK_SUBS,
   taskGroups:  MOCK_GROUPS,
+  customRoles: [],
   lang:        (localStorage.getItem('lang') as Lang) ?? 'bm',
   dark:        localStorage.getItem('dark') === 'true',
   dbReady:     !supabaseConfigured,   // if no DB, mark ready immediately
@@ -215,18 +230,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.user?.id])
 
-  // On login — load per-user task states from DB
+  // On login — load per-user data and resolve feature permissions
   useEffect(() => {
     if (!state.user || !supabaseConfigured) return
     ;(async () => {
-      const [states, subs, groups] = await Promise.all([
+      const [states, subs, groups, customRoles] = await Promise.all([
         db.fetchTaskStates(state.user!.id),
         db.fetchSubmissions(90, state.user!.role === 'supervisor' ? state.user!.branch : undefined),
         db.fetchTaskGroups(),
+        db.fetchCustomRoles(),
       ])
-      if (states)  dispatch({ type: 'SET_TASK_STATES',  states })
-      if (subs)    dispatch({ type: 'SET_SUBMISSIONS',   subs })
-      if (groups)  dispatch({ type: 'SET_TASK_GROUPS',   groups })
+      if (states)       dispatch({ type: 'SET_TASK_STATES',   states })
+      if (subs)         dispatch({ type: 'SET_SUBMISSIONS',    subs })
+      if (groups)       dispatch({ type: 'SET_TASK_GROUPS',    groups })
+      if (customRoles)  dispatch({ type: 'SET_CUSTOM_ROLES',   roles: customRoles })
+      // Always re-resolve features so changes by owner take effect on next login
+      const customRole = customRoles?.find(r => r.id === state.user!.customRoleId)
+      const features = resolveFeatures(state.user!, customRole)
+      dispatch({ type: 'UPDATE_USER', updates: { features } })
       dispatch({ type: 'SET_DB_READY' })
     })()
   }, [state.user?.id])

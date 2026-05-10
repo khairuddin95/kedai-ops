@@ -32,6 +32,7 @@ const DEPT_OPTIONS: { id: Department | ''; label: string }[] = [
 const blank = {
   name: '', role: 'staff' as User['role'], branch: '', username: '', avatar: '🧑‍🍳',
   defaultShift: '' as ShiftId | '', department: '' as Department | '',
+  customRoleId: '',
 }
 
 export default function StaffPage() {
@@ -73,7 +74,7 @@ export default function StaffPage() {
   const openAdd = () => { resetForm(); setShowForm(true) }
 
   const openEdit = (u: User) => {
-    setForm({ name: u.name, role: u.role, branch: u.branch, username: u.username, avatar: u.avatar, defaultShift: u.defaultShift ?? '', department: u.department ?? '' })
+    setForm({ name: u.name, role: u.role, branch: u.branch, username: u.username, avatar: u.avatar, defaultShift: u.defaultShift ?? '', department: u.department ?? '', customRoleId: u.customRoleId ?? '' })
     setEditId(u.id)
     setShowForm(true)
   }
@@ -110,9 +111,12 @@ export default function StaffPage() {
 
     if (isEdit) {
       const updates = { name: form.name.trim(), role: form.role, branch: form.branch, avatar: form.avatar, default_shift: form.defaultShift || null, department: form.department || null }
-      if (supabaseConfigured) await db.updateUser(editId, updates)
+      if (supabaseConfigured) {
+        await db.updateUser(editId, updates)
+        await db.assignCustomRole(editId, form.customRoleId || null)
+      }
       const { default_shift, department, ...rest } = updates
-      setUsers(prev => prev.map(u => u.id === editId ? { ...u, ...rest, defaultShift: (default_shift as ShiftId) || undefined, department: (department as Department) || undefined } : u))
+      setUsers(prev => prev.map(u => u.id === editId ? { ...u, ...rest, defaultShift: (default_shift as ShiftId) || undefined, department: (department as Department) || undefined, customRoleId: form.customRoleId || undefined } : u))
       setSuccess(s.staff_saved)
     } else {
       let newUser: User | null = null
@@ -120,6 +124,10 @@ export default function StaffPage() {
         newUser = await db.registerUser(
           { name: form.name.trim(), role: form.role, branch: form.branch, avatar: form.avatar, username: form.username.toLowerCase() }
         )
+        if (newUser && form.customRoleId) {
+          await db.assignCustomRole(newUser.id, form.customRoleId)
+          newUser = { ...newUser, customRoleId: form.customRoleId }
+        }
       } else {
         newUser = { id: `mock_${Date.now()}`, name: form.name.trim(), role: form.role, branch: form.branch, avatar: form.avatar, username: form.username.toLowerCase() }
       }
@@ -235,6 +243,24 @@ export default function StaffPage() {
                 {isOwner && <option value="owner">{s.role_owner}</option>}
               </select>
             </div>
+
+            {/* Custom role */}
+            {form.role !== 'owner' && state.customRoles.filter(r => r.baseRole === form.role).length > 0 && (
+              <div>
+                <label className="block text-xs font-medium text-[var(--text-soft)] mb-1">{s.custom_role_label}</label>
+                <select
+                  value={form.customRoleId}
+                  onChange={e => setForm(f => ({ ...f, customRoleId: e.target.value }))}
+                  className="w-full bg-[var(--surface-2)] border border-[var(--border)] rounded-md px-3 py-2 text-sm text-[var(--text)] outline-none focus:border-brand-400 transition-colors"
+                >
+                  <option value="">{s.custom_role_none}</option>
+                  {state.customRoles.filter(r => r.baseRole === form.role).map(r => (
+                    <option key={r.id} value={r.id}>{r.name}</option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-[var(--text-muted)] mt-1">{s.custom_role_hint}</p>
+              </div>
+            )}
 
             {/* Branch */}
             <div>
@@ -354,6 +380,12 @@ export default function StaffPage() {
                   {u.defaultShift && (
                     <span className="text-xs font-medium text-amber-600 dark:text-amber-400">{u.defaultShift === 'morning' ? '☀️' : '🌙'}</span>
                   )}
+                  {u.customRoleId && (() => {
+                    const cr = state.customRoles.find(r => r.id === u.customRoleId)
+                    return cr ? (
+                      <span className="text-[10px] border border-[var(--border)] px-1.5 py-0.5 rounded text-[var(--text-muted)]">🔐 {cr.name}</span>
+                    ) : null
+                  })()}
                   {u.telegramId && (
                     <span className="text-xs font-medium text-sky-600 dark:text-sky-400" title={s.telegram_linked}>✈️</span>
                   )}

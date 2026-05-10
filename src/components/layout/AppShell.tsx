@@ -4,44 +4,34 @@ import { useApp } from '../../context/AppContext'
 import { STRINGS } from '../../utils/i18n'
 import Avatar from '../ui/Avatar'
 import { sendNotification } from '../../lib/notifications'
+import { hasFeature } from '../../utils/permissions'
+import type { FeatureKey, User } from '../../types'
 
-type NavItem = { to: string; icon: string; label: string }
+type NavItem = { to: string; icon: string; label: string; key: FeatureKey }
 
-function navItems(role: string, lang: 'bm' | 'en'): NavItem[] {
-  const s = STRINGS[lang as 'bm' | 'en']
-  if (role === 'staff') return [
-    { to: '/',               icon: '🏠', label: s.home },
-    { to: '/tasks',          icon: '📋', label: s.tasks },
-    { to: '/google-review',  icon: '⭐', label: s.google_review },
-    { to: '/history',        icon: '📜', label: s.history },
-    { to: '/settings',       icon: '⚙️', label: s.settings },
-  ]
-  if (role === 'supervisor') return [
-    { to: '/dashboard',     icon: '📊', label: 'Dashboard' },
-    { to: '/review',        icon: '🔍', label: s.review },
-    { to: '/schedule',      icon: '📅', label: s.nav_schedule },
-    { to: '/maintenance',   icon: '🔧', label: s.maintenance },
-    { to: '/loans',         icon: '📦', label: s.loan_item },
-    { to: '/tasks-admin',   icon: '📋', label: s.task_mgmt },
-    { to: '/assets',        icon: '🗄️',  label: s.asset_mgmt },
-    { to: '/google-review', icon: '⭐', label: s.google_review },
-    { to: '/history',       icon: '📜', label: s.history },
-    { to: '/settings',      icon: '⚙️', label: s.settings },
-  ]
-  return [
-    { to: '/dashboard',     icon: '📊', label: 'Dashboard' },
-    { to: '/review',        icon: '🔍', label: s.review },
-    { to: '/schedule',      icon: '📅', label: s.nav_schedule },
-    { to: '/maintenance',   icon: '🔧', label: s.maintenance },
-    { to: '/loans',         icon: '📦', label: s.loan_item },
-    { to: '/tasks-admin',   icon: '📋', label: s.task_mgmt },
-    { to: '/assets',        icon: '🗄️',  label: s.asset_mgmt },
-    { to: '/branches',      icon: '🏪', label: s.branch_setup },
-    { to: '/staff',         icon: '👥', label: s.staff },
-    { to: '/google-review', icon: '⭐', label: s.google_review },
-    { to: '/history',       icon: '📜', label: s.history },
-    { to: '/settings',      icon: '⚙️', label: s.settings },
-  ]
+const ALL_NAV: NavItem[] = [
+  { key: 'home',          to: '/',              icon: '🏠', label: 'home' },
+  { key: 'tasks',         to: '/tasks',         icon: '📋', label: 'tasks' },
+  { key: 'dashboard',     to: '/dashboard',     icon: '📊', label: 'dashboard' },
+  { key: 'review',        to: '/review',        icon: '🔍', label: 'review' },
+  { key: 'schedule',      to: '/schedule',      icon: '📅', label: 'nav_schedule' },
+  { key: 'maintenance',   to: '/maintenance',   icon: '🔧', label: 'maintenance' },
+  { key: 'loans',         to: '/loans',         icon: '📦', label: 'loan_item' },
+  { key: 'tasks-admin',   to: '/tasks-admin',   icon: '📋', label: 'task_mgmt' },
+  { key: 'assets',        to: '/assets',        icon: '🗄️', label: 'asset_mgmt' },
+  { key: 'branches',      to: '/branches',      icon: '🏪', label: 'branch_setup' },
+  { key: 'staff',         to: '/staff',         icon: '👥', label: 'staff' },
+  { key: 'roles',         to: '/roles',         icon: '🔐', label: 'roles_nav' },
+  { key: 'google-review', to: '/google-review', icon: '⭐', label: 'google_review' },
+  { key: 'history',       to: '/history',       icon: '📜', label: 'history' },
+  { key: 'settings',      to: '/settings',      icon: '⚙️', label: 'settings' },
+]
+
+function navItems(user: User, lang: 'bm' | 'en'): NavItem[] {
+  const s = STRINGS[lang]
+  return ALL_NAV
+    .filter(item => hasFeature(user, item.key))
+    .map(item => ({ ...item, label: s[item.label] ?? item.label }))
 }
 
 const PRIMARY_COUNT = 4
@@ -52,7 +42,7 @@ export default function AppShell() {
   const lang = state.lang
   const s = STRINGS[lang]
   const role = state.user?.role ?? 'staff'
-  const items = navItems(role, lang)
+  const items = navItems(state.user!, lang)
   const primaryItems = items.slice(0, PRIMARY_COUNT)
   const moreItems    = items.slice(PRIMARY_COUNT)
   const [drawerOpen, setDrawerOpen] = useState(false)

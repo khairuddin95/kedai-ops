@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AppProvider, useApp } from './context/AppContext'
+import { hasFeature } from './utils/permissions'
+import type { FeatureKey } from './types'
 import AppShell from './components/layout/AppShell'
 import LoginPage      from './pages/LoginPage'
 import HomePage       from './pages/HomePage'
@@ -18,6 +20,7 @@ import LoanPage         from './pages/LoanPage'
 import GoogleReviewPage from './pages/GoogleReviewPage'
 import SchedulePage     from './pages/SchedulePage'
 import SettingsPage     from './pages/SettingsPage'
+import RolesPage        from './pages/RolesPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { state } = useApp()
@@ -25,11 +28,10 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-type Role = 'staff' | 'supervisor' | 'owner'
-function RequireRole({ children, roles }: { children: React.ReactNode; roles: Role[] }) {
+function RequireFeature({ children, feature }: { children: React.ReactNode; feature: FeatureKey }) {
   const { state } = useApp()
   if (!state.user) return <Navigate to="/login" replace />
-  if (!roles.includes(state.user.role as Role)) {
+  if (!hasFeature(state.user, feature)) {
     const fallback = state.user.role === 'staff' ? '/' : '/dashboard'
     return <Navigate to={fallback} replace />
   }
@@ -48,15 +50,16 @@ function AppRoutes() {
         <Route path="tasks/:id" element={<TaskDetailPage />} />
         <Route path="tasks/:id/submitted" element={<SubmittedPage />} />
         <Route path="history" element={<HistoryPage />} />
-        <Route path="review"      element={<RequireRole roles={['supervisor','owner']}><ReviewPage /></RequireRole>} />
-        <Route path="dashboard"   element={<RequireRole roles={['supervisor','owner']}><DashboardPage /></RequireRole>} />
-        <Route path="staff"       element={<RequireRole roles={['owner']}><StaffPage /></RequireRole>} />
-        <Route path="tasks-admin" element={<RequireRole roles={['supervisor','owner']}><TasksAdminPage /></RequireRole>} />
-        <Route path="assets"       element={<RequireRole roles={['supervisor','owner']}><AssetPage /></RequireRole>} />
-        <Route path="branches"     element={<RequireRole roles={['owner']}><BranchPage /></RequireRole>} />
-        <Route path="maintenance"  element={<RequireRole roles={['supervisor','owner']}><MaintenancePage /></RequireRole>} />
-        <Route path="loans"        element={<RequireRole roles={['supervisor','owner']}><LoanPage /></RequireRole>} />
-        <Route path="schedule"     element={<RequireRole roles={['supervisor','owner']}><SchedulePage /></RequireRole>} />
+        <Route path="review"      element={<RequireFeature feature="review"><ReviewPage /></RequireFeature>} />
+        <Route path="dashboard"   element={<RequireFeature feature="dashboard"><DashboardPage /></RequireFeature>} />
+        <Route path="staff"       element={<RequireFeature feature="staff"><StaffPage /></RequireFeature>} />
+        <Route path="tasks-admin" element={<RequireFeature feature="tasks-admin"><TasksAdminPage /></RequireFeature>} />
+        <Route path="assets"       element={<RequireFeature feature="assets"><AssetPage /></RequireFeature>} />
+        <Route path="branches"     element={<RequireFeature feature="branches"><BranchPage /></RequireFeature>} />
+        <Route path="maintenance"  element={<RequireFeature feature="maintenance"><MaintenancePage /></RequireFeature>} />
+        <Route path="loans"        element={<RequireFeature feature="loans"><LoanPage /></RequireFeature>} />
+        <Route path="schedule"     element={<RequireFeature feature="schedule"><SchedulePage /></RequireFeature>} />
+        <Route path="roles"        element={<RequireFeature feature="roles"><RolesPage /></RequireFeature>} />
         <Route path="google-review" element={<GoogleReviewPage />} />
         <Route path="settings"      element={<SettingsPage />} />
         <Route path="*" element={<Navigate to={state.user?.role === 'staff' ? '/' : '/dashboard'} replace />} />
