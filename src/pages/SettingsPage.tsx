@@ -90,23 +90,6 @@ export default function SettingsPage() {
     }
   }
 
-  // ── Default shift ─────────────────────────────────────────
-  const [defaultShift, setDefaultShift] = useState<string>(user.defaultShift ?? '')
-  const [shiftMsg, setShiftMsg] = useState('')
-
-  const handleSaveShift = async () => {
-    if (!supabaseConfigured) return
-    const ok = await db.updateUser(user.id, {
-      name: user.name, role: user.role, branch: user.branch, avatar: user.avatar,
-      default_shift: defaultShift || null,
-    })
-    if (ok) {
-      dispatch({ type: 'UPDATE_USER', updates: { defaultShift: (defaultShift as 'morning' | 'evening') || undefined } })
-      setShiftMsg(s.set_shift_saved)
-      setTimeout(() => setShiftMsg(''), 2500)
-    }
-  }
-
   // ── Notifications ─────────────────────────────────────────
   const [permission, setPermission] = useState<NotifPermission>(() => getPermission())
   const [notifOn, setNotifOn] = useState(() => getEnabled())
@@ -274,40 +257,6 @@ export default function SettingsPage() {
           </div>
         </Card>
       </Section>
-
-      {/* ── Default shift (staff & supervisor) ── */}
-      {user.role !== 'owner' && (
-        <Section title={s.set_shift}>
-          <Card>
-            <div className="flex gap-2">
-              {(['morning', 'evening'] as const).map(sh => (
-                <button
-                  key={sh}
-                  onClick={() => setDefaultShift(sh)}
-                  className={`flex-1 py-2.5 rounded-lg text-sm font-semibold border transition-all ${
-                    defaultShift === sh
-                      ? sh === 'morning'
-                        ? 'bg-amber-100 dark:bg-amber-900/30 border-amber-400 text-amber-700 dark:text-amber-300'
-                        : 'bg-indigo-100 dark:bg-indigo-900/30 border-indigo-400 text-indigo-700 dark:text-indigo-300'
-                      : 'border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-2)]'
-                  }`}
-                >
-                  {sh === 'morning' ? `☀️ ${s.shift_morning}` : `🌙 ${s.shift_evening}`}
-                </button>
-              ))}
-            </div>
-            {shiftMsg && <p className="text-xs text-emerald-600 mt-2">{shiftMsg}</p>}
-            <Button
-              className="w-full mt-3"
-              variant="secondary"
-              disabled={defaultShift === (user.defaultShift ?? '')}
-              onClick={handleSaveShift}
-            >
-              {s.save}
-            </Button>
-          </Card>
-        </Section>
-      )}
 
       {/* ── Notifications ── */}
       {notifSupported() && (
