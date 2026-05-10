@@ -109,7 +109,7 @@ export default function MaintenancePage() {
 
       if (formPhotos.length > 0) {
         const uploads = await Promise.all(
-          formPhotos.map(p => db.uploadMaintenancePhoto(p.file, draft.id))
+          formPhotos.map((p, i) => db.uploadMaintenancePhoto(p.file, draft.id, i))
         )
         photoUrls = uploads.filter(Boolean) as string[]
         if (photoUrls.length < formPhotos.length) {

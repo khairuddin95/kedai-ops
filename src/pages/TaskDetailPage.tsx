@@ -98,7 +98,7 @@ export default function TaskDetailPage() {
     let uploadedUrls: string[] = [...photos]
     let uploadFailed = false
     if (supabaseConfigured && localPhotos.length > 0) {
-      const results = await Promise.all(localPhotos.map(p => db.uploadTaskPhoto(p.file, subId)))
+      const results = await Promise.all(localPhotos.map((p, i) => db.uploadTaskPhoto(p.file, subId, i)))
       uploadFailed = results.some(r => !r)
       uploadedUrls = [...uploadedUrls, ...results.filter(Boolean) as string[]]
     } else {

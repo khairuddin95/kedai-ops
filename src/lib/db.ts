@@ -508,20 +508,21 @@ function maintFromDb(r: {
   }
 }
 
-export async function uploadMaintenancePhoto(file: File, reportId: string): Promise<string | null> {
+export async function uploadMaintenancePhoto(file: File, reportId: string, index = 0): Promise<string | null> {
   if (!supabase) return null
-  const ext = file.name.split('.').pop() ?? 'jpg'
-  const path = `${reportId}/${Date.now()}.${ext}`
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
+  const path = `${reportId}/${Date.now()}_${index}.${ext}`
   const { error } = await supabase.storage.from('maintenance-photos').upload(path, file, { upsert: false })
   if (error) { console.error('[db] uploadMaintenancePhoto:', error); return null }
   const { data } = supabase.storage.from('maintenance-photos').getPublicUrl(path)
   return data.publicUrl
 }
 
-export async function uploadTaskPhoto(file: File, submissionId: string): Promise<string | null> {
+export async function uploadTaskPhoto(file: File, submissionId: string, index = 0): Promise<string | null> {
   if (!supabase) return null
-  const ext = file.name.split('.').pop() ?? 'jpg'
-  const path = `${submissionId}/${Date.now()}.${ext}`
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
+  // Include index so concurrent Promise.all uploads never share the same path
+  const path = `${submissionId}/${Date.now()}_${index}.${ext}`
   const { error } = await supabase.storage.from('task-photos').upload(path, file, { upsert: false })
   if (error) { console.error('[db] uploadTaskPhoto:', error); return null }
   const { data } = supabase.storage.from('task-photos').getPublicUrl(path)
