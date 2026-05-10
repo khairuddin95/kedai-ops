@@ -20,7 +20,6 @@ import LoanPage         from './pages/LoanPage'
 import GoogleReviewPage from './pages/GoogleReviewPage'
 import SchedulePage     from './pages/SchedulePage'
 import SettingsPage     from './pages/SettingsPage'
-import RolesPage        from './pages/RolesPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { state } = useApp()
@@ -59,7 +58,6 @@ function AppRoutes() {
         <Route path="maintenance"  element={<RequireFeature feature="maintenance"><MaintenancePage /></RequireFeature>} />
         <Route path="loans"        element={<RequireFeature feature="loans"><LoanPage /></RequireFeature>} />
         <Route path="schedule"     element={<RequireFeature feature="schedule"><SchedulePage /></RequireFeature>} />
-        <Route path="roles"        element={<RequireFeature feature="roles"><RolesPage /></RequireFeature>} />
         <Route path="google-review" element={<GoogleReviewPage />} />
         <Route path="settings"      element={<SettingsPage />} />
         <Route path="*" element={<Navigate to={state.user?.role === 'staff' ? '/' : '/dashboard'} replace />} />

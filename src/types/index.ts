@@ -62,18 +62,11 @@ export type UserRole = 'staff' | 'supervisor' | 'owner'
 
 export const FEATURES = [
   'home', 'tasks', 'dashboard', 'review', 'schedule', 'maintenance', 'loans',
-  'tasks-admin', 'assets', 'branches', 'staff', 'roles',
+  'tasks-admin', 'assets', 'branches', 'staff',
   'google-review', 'history', 'settings',
 ] as const
 
 export type FeatureKey = typeof FEATURES[number]
-
-export interface CustomRole {
-  id: string
-  name: string
-  baseRole: 'staff' | 'supervisor'
-  features: FeatureKey[]
-}
 
 export interface User {
   id: string
@@ -85,8 +78,6 @@ export interface User {
   telegramId?: string
   defaultShift?: ShiftId
   department?: Department
-  customRoleId?: string
-  features?: FeatureKey[]
 }
 
 export type TaskStatus = 'pending' | 'in_progress' | 'done' | 'late'

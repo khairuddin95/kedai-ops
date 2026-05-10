@@ -21,7 +21,6 @@ const ALL_NAV: NavItem[] = [
   { key: 'assets',        to: '/assets',        icon: '🗄️', label: 'asset_mgmt' },
   { key: 'branches',      to: '/branches',      icon: '🏪', label: 'branch_setup' },
   { key: 'staff',         to: '/staff',         icon: '👥', label: 'staff' },
-  { key: 'roles',         to: '/roles',         icon: '🔐', label: 'roles_nav' },
   { key: 'google-review', to: '/google-review', icon: '⭐', label: 'google_review' },
   { key: 'history',       to: '/history',       icon: '📜', label: 'history' },
   { key: 'settings',      to: '/settings',      icon: '⚙️', label: 'settings' },

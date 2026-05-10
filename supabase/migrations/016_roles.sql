@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS public.custom_roles (
 );
 
 ALTER TABLE public.custom_roles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "cr_read"  ON public.custom_roles;
+DROP POLICY IF EXISTS "cr_write" ON public.custom_roles;
 CREATE POLICY "cr_read"  ON public.custom_roles FOR SELECT USING (true);
 CREATE POLICY "cr_write" ON public.custom_roles FOR ALL    USING (true);
 

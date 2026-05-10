@@ -4,7 +4,7 @@
  * live in db-ops.ts and are re-exported here so callers need only one import.
  */
 import { supabase } from './supabase'
-import type { CustomRole, FeatureKey, Task, TaskGroup, TaskGroupDepartment, TaskGroupFrequency, TaskGroupShift, TaskState, User } from '../types'
+import type { Task, TaskGroup, TaskGroupDepartment, TaskGroupFrequency, TaskGroupShift, TaskState, User } from '../types'
 import type { Submission } from '../types'
 
 export * from './db-ops'
@@ -83,18 +83,16 @@ export async function checkUsername(username: string): Promise<UserPreview | nul
 async function getUserExtras(userId: string): Promise<{
   defaultShift?: import('../types').ShiftId
   department?: import('../types').Department
-  customRoleId?: string
 }> {
   if (!supabase) return {}
   const { data } = await supabase
     .from('users')
-    .select('default_shift, department, custom_role_id')
+    .select('default_shift, department')
     .eq('id', userId)
     .single()
   return {
-    defaultShift:   (data?.default_shift as import('../types').ShiftId) || undefined,
-    department:     (data?.department   as import('../types').Department) || undefined,
-    customRoleId:   data?.custom_role_id ?? undefined,
+    defaultShift: (data?.default_shift as import('../types').ShiftId) || undefined,
+    department:   (data?.department   as import('../types').Department) || undefined,
   }
 }
 
@@ -144,7 +142,7 @@ export async function fetchUsers(): Promise<User[] | null> {
   if (!supabase) return null
   const { data, error } = await supabase
     .from('users')
-    .select('id, name, role, branch, avatar, username, pin_set, telegram_id, default_shift, department, custom_role_id')
+    .select('id, name, role, branch, avatar, username, pin_set, telegram_id, default_shift, department')
     .order('name')
   if (error) { console.error('[db] fetchUsers:', error); return null }
   return (data ?? []).map(r => ({
@@ -153,7 +151,6 @@ export async function fetchUsers(): Promise<User[] | null> {
     telegramId:   r.telegram_id ?? undefined,
     defaultShift: (r.default_shift as import('../types').ShiftId) || undefined,
     department:   (r.department as import('../types').Department) || undefined,
-    customRoleId: r.custom_role_id ?? undefined,
   }))
 }
 
@@ -182,13 +179,6 @@ export async function updateUser(
   return true
 }
 
-export async function assignCustomRole(userId: string, customRoleId: string | null): Promise<boolean> {
-  if (!supabase) return false
-  const { error } = await supabase.from('users').update({ custom_role_id: customRoleId }).eq('id', userId)
-  if (error) { console.error('[db] assignCustomRole:', error); return false }
-  return true
-}
-
 export async function resetUserPin(id: string, branch: string): Promise<boolean> {
   if (!supabase) return false
   const { data, error } = await supabase.rpc('reset_user_pin', { p_user_id: id, p_branch: branch })
@@ -207,47 +197,6 @@ export async function deleteUser(id: string): Promise<boolean> {
   if (!supabase) return false
   const { error } = await supabase.from('users').delete().eq('id', id)
   if (error) { console.error('[db] deleteUser:', error); return false }
-  return true
-}
-
-// ─── Custom Roles ────────────────────────────────────────────
-
-function customRoleFromDb(r: { id: string; name: string; base_role: string; features: string[] }): CustomRole {
-  return {
-    id: r.id, name: r.name,
-    baseRole: r.base_role as CustomRole['baseRole'],
-    features: (r.features ?? []) as FeatureKey[],
-  }
-}
-
-export async function fetchCustomRoles(): Promise<CustomRole[] | null> {
-  if (!supabase) return null
-  const { data, error } = await supabase.from('custom_roles').select('*').order('name')
-  if (error) { console.error('[db] fetchCustomRoles:', error); return null }
-  return (data ?? []).map(customRoleFromDb)
-}
-
-export async function insertCustomRole(r: Omit<CustomRole, 'id'>): Promise<CustomRole | null> {
-  if (!supabase) return null
-  const { data, error } = await supabase
-    .from('custom_roles')
-    .insert({ name: r.name, base_role: r.baseRole, features: r.features })
-    .select().single()
-  if (error) { console.error('[db] insertCustomRole:', error); return null }
-  return customRoleFromDb(data)
-}
-
-export async function updateCustomRole(id: string, updates: { name?: string; features?: FeatureKey[] }): Promise<boolean> {
-  if (!supabase) return false
-  const { error } = await supabase.from('custom_roles').update(updates).eq('id', id)
-  if (error) { console.error('[db] updateCustomRole:', error); return false }
-  return true
-}
-
-export async function deleteCustomRole(id: string): Promise<boolean> {
-  if (!supabase) return false
-  const { error } = await supabase.from('custom_roles').delete().eq('id', id)
-  if (error) { console.error('[db] deleteCustomRole:', error); return false }
   return true
 }
 
