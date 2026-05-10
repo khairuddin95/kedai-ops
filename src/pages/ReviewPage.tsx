@@ -6,7 +6,7 @@ import Avatar from '../components/ui/Avatar'
 import StarRating from '../components/ui/StarRating'
 import { SubStatusBadge } from '../components/ui/Badge'
 import * as db from '../lib/db'
-import { supabaseConfigured } from '../lib/supabase'
+import { supabase, supabaseConfigured } from '../lib/supabase'
 import type { Submission, SubmissionStatus } from '../types'
 
 type Tab = 'pending' | 'approved' | 'rejected'
@@ -23,31 +23,61 @@ export default function ReviewPage() {
   const [lightbox, setLightbox] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [realtimeStatus, setRealtimeStatus] = useState<'connecting' | 'live' | 'error'>('connecting')
   const refreshingRef = useRef(false)
 
-  const doRefresh = useCallback(async (silent = false) => {
+  const doRefresh = useCallback(async () => {
     if (!state.user || refreshingRef.current || !supabaseConfigured) return
     refreshingRef.current = true
-    if (!silent) setRefreshing(true)
+    setRefreshing(true)
     const subs = await db.fetchSubmissions(90, state.user.role === 'supervisor' ? state.user.branch : undefined)
-    if (subs) {
-      dispatch({ type: 'SET_SUBMISSIONS', subs })
-      setLastUpdated(new Date())
-    }
+    if (subs) { dispatch({ type: 'SET_SUBMISSIONS', subs }); setLastUpdated(new Date()) }
     refreshingRef.current = false
-    if (!silent) setRefreshing(false)
+    setRefreshing(false)
   }, [state.user, dispatch])
 
-  // Auto-refresh every 30s, paused when tab is hidden
+  // Supabase Realtime — subscribe to INSERT / UPDATE on submissions
   useEffect(() => {
-    if (!supabaseConfigured) return
-    const tick = () => { if (document.visibilityState === 'visible') doRefresh(true) }
-    const id = setInterval(tick, 30_000)
-    document.addEventListener('visibilitychange', tick)
-    return () => { clearInterval(id); document.removeEventListener('visibilitychange', tick) }
-  }, [doRefresh])
+    if (!supabase || !state.user) return
+    const isSupervisor = state.user.role === 'supervisor'
+    const filter = isSupervisor ? `branch=eq.${state.user.branch}` : undefined
 
-  const handleRefresh = () => doRefresh(false)
+    const mkOpts = (event: 'INSERT' | 'UPDATE' | 'DELETE') => ({
+      event, schema: 'public' as const, table: 'submissions',
+      ...(filter ? { filter } : {}),
+    })
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mapRow = (row: any) => db.submissionFromDb(row as Parameters<typeof db.submissionFromDb>[0])
+
+    const channel = supabase!
+      .channel('review-submissions')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .on('postgres_changes', mkOpts('INSERT'), ({ new: row }: any) => {
+        if (!row?.id) return
+        dispatch({ type: 'ADD_SUBMISSION', sub: mapRow(row) })
+        setLastUpdated(new Date())
+      })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .on('postgres_changes', mkOpts('UPDATE'), ({ new: row }: any) => {
+        if (!row?.id) return
+        dispatch({ type: 'UPDATE_SUBMISSION', id: row.id as string, updates: mapRow(row) })
+        setLastUpdated(new Date())
+      })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .on('postgres_changes', mkOpts('DELETE'), ({ old: row }: any) => {
+        if (row?.id) dispatch({ type: 'REMOVE_SUBMISSION', id: row.id as string })
+      })
+      .subscribe(status => {
+        if (status === 'SUBSCRIBED') setRealtimeStatus('live')
+        else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') setRealtimeStatus('error')
+        else setRealtimeStatus('connecting')
+      })
+
+    return () => { supabase!.removeChannel(channel) }
+  }, [state.user?.id, state.user?.branch, dispatch])
+
+  const handleRefresh = () => doRefresh()
 
   const visibleSubs = state.submissions.filter(sub => sub.status === tab)
   const pending = state.submissions.filter(sub => sub.status === 'pending').length
@@ -82,10 +112,20 @@ export default function ReviewPage() {
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-xl font-bold text-[var(--text)]">{s.review_title}</h2>
-          {lastUpdated && (
-            <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
-              Dikemaskini {lastUpdated.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-            </p>
+          {supabaseConfigured && (
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                realtimeStatus === 'live'       ? 'bg-emerald-500 animate-pulse' :
+                realtimeStatus === 'error'      ? 'bg-red-500' : 'bg-amber-400 animate-pulse'
+              }`} />
+              <p className="text-[11px] text-[var(--text-muted)]">
+                {realtimeStatus === 'live'  ? 'Langsung' :
+                 realtimeStatus === 'error' ? 'Sambungan terputus' : 'Menyambung…'}
+                {lastUpdated && realtimeStatus === 'live' && (
+                  <span> · {lastUpdated.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                )}
+              </p>
+            </div>
           )}
         </div>
         {supabaseConfigured && (

@@ -30,7 +30,7 @@ function taskGroupFromDb(
   }
 }
 
-function submissionFromDb(r: {
+export function submissionFromDb(r: {
   id: string; task_id: string; task_title: string
   staff_id: string; staff_name: string; staff_avatar: string
   branch: string; shift_id: string; submitted_at: string
