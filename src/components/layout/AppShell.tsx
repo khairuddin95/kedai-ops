@@ -70,6 +70,7 @@ function navItems(role: string, lang: 'bm' | 'en'): NavItem[] {
     { to: '/tasks',          icon: '📋', label: s.tasks },
     { to: '/google-review',  icon: '⭐', label: s.google_review },
     { to: '/history',        icon: '📜', label: s.history },
+    { to: '/settings',       icon: '⚙️', label: s.settings },
   ]
   if (role === 'supervisor') return [
     { to: '/dashboard',     icon: '📊', label: 'Dashboard' },
@@ -81,6 +82,7 @@ function navItems(role: string, lang: 'bm' | 'en'): NavItem[] {
     { to: '/assets',        icon: '🗄️',  label: s.asset_mgmt },
     { to: '/google-review', icon: '⭐', label: s.google_review },
     { to: '/history',       icon: '📜', label: s.history },
+    { to: '/settings',      icon: '⚙️', label: s.settings },
   ]
   return [
     { to: '/dashboard',     icon: '📊', label: 'Dashboard' },
@@ -94,6 +96,7 @@ function navItems(role: string, lang: 'bm' | 'en'): NavItem[] {
     { to: '/staff',         icon: '👥', label: s.staff },
     { to: '/google-review', icon: '⭐', label: s.google_review },
     { to: '/history',       icon: '📜', label: s.history },
+    { to: '/settings',      icon: '⚙️', label: s.settings },
   ]
 }
 

@@ -41,6 +41,7 @@ type Action =
   | { type: 'SET_LANG';        lang: Lang }
   | { type: 'TOGGLE_DARK' }
   | { type: 'SET_DB_READY' }
+  | { type: 'UPDATE_USER';     updates: Partial<User> }
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -104,6 +105,8 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, dark: !state.dark }
     case 'SET_DB_READY':
       return { ...state, dbReady: true }
+    case 'UPDATE_USER':
+      return { ...state, user: state.user ? { ...state.user, ...action.updates } : state.user }
     default:
       return state
   }

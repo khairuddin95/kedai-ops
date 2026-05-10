@@ -86,6 +86,12 @@ async function getUserExtras(userId: string): Promise<{ defaultShift?: import('.
   }
 }
 
+export async function getUserPinStatus(userId: string): Promise<boolean> {
+  if (!supabase) return false
+  const { data } = await supabase.from('users').select('pin_set').eq('id', userId).single()
+  return data?.pin_set ?? false
+}
+
 export async function setUserPin(username: string, pin: string): Promise<User | null> {
   if (!supabase) return null
   const { data, error } = await supabase.rpc('set_user_pin', {
