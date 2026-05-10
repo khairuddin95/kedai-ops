@@ -42,6 +42,7 @@ export default function RolesPage() {
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
   const [error, setError] = useState('')
+  const [nameError, setNameError] = useState(false)
 
   const customRoles = state.customRoles
 
@@ -51,7 +52,7 @@ export default function RolesPage() {
     }
   }, [])
 
-  const resetForm = () => { setForm({ ...blank }); setEditId(null); setError('') }
+  const resetForm = () => { setForm({ ...blank }); setEditId(null); setError(''); setNameError(false) }
 
   const openAdd = () => { resetForm(); setShowForm(true) }
 
@@ -70,7 +71,12 @@ export default function RolesPage() {
 
   const handleSave = async () => {
     setError('')
-    if (!form.name.trim()) { setError(s.fill_all); return }
+    setNameError(false)
+    if (!form.name.trim()) {
+      setNameError(true)
+      setError(lang === 'bm' ? 'Sila masukkan nama peranan.' : 'Please enter a role name.')
+      return
+    }
     setSaving(true)
 
     if (editId) {
@@ -139,13 +145,22 @@ export default function RolesPage() {
           <div className="space-y-4">
             {/* Name */}
             <div>
-              <label className="block text-xs font-medium text-[var(--text-soft)] mb-1">{s.role_name_label}</label>
+              <label className="block text-xs font-medium text-[var(--text-soft)] mb-1">
+                {s.role_name_label} <span className="text-red-500">*</span>
+              </label>
               <input
                 value={form.name}
-                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setNameError(false) }}
                 placeholder={s.role_name_ph}
-                className="w-full bg-[var(--surface-2)] border border-[var(--border)] rounded-md px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none focus:border-brand-400 transition-colors"
+                className={`w-full bg-[var(--surface-2)] border rounded-md px-3 py-2 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] outline-none transition-colors ${
+                  nameError ? 'border-red-400 focus:border-red-500' : 'border-[var(--border)] focus:border-brand-400'
+                }`}
               />
+              {nameError && (
+                <p className="text-xs text-red-500 mt-1">
+                  {lang === 'bm' ? 'Nama peranan diperlukan.' : 'Role name is required.'}
+                </p>
+              )}
             </div>
 
             {/* Base role — read-only when editing */}
