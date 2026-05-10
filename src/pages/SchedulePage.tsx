@@ -172,7 +172,7 @@ export default function SchedulePage() {
           <table className="w-full min-w-[520px]">
             <thead>
               <tr className="border-b border-[var(--border)]">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-muted)] w-40 sticky left-0 bg-[var(--surface)] z-10">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-[var(--text-muted)] w-48 sticky left-0 bg-[var(--surface)] z-10">
                   {s.sched_col_name}
                 </th>
                 {DAY_ORDER.map((dow, i) => (
@@ -211,8 +211,8 @@ export default function SchedulePage() {
                     <div className="flex items-center gap-2">
                       <span className="text-lg flex-shrink-0">{user.avatar}</span>
                       <div className="min-w-0">
-                        <div className="text-sm font-medium text-[var(--text)] truncate max-w-[90px]">{user.name}</div>
-                        <div className="text-[10px] text-[var(--text-muted)] truncate">{user.branch}</div>
+                        <div className="text-sm font-medium text-[var(--text)] leading-tight line-clamp-2">{user.name}</div>
+                        <div className="text-[10px] text-[var(--text-muted)]">@{user.username}</div>
                       </div>
                     </div>
                   </td>
