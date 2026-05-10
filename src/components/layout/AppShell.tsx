@@ -5,7 +5,11 @@ import { STRINGS } from '../../utils/i18n'
 import Avatar from '../ui/Avatar'
 import { sendNotification } from '../../lib/notifications'
 import { hasFeature } from '../../utils/permissions'
+import { supabaseConfigured } from '../../lib/supabase'
+import * as db from '../../lib/db'
 import type { FeatureKey, User } from '../../types'
+
+type AppAlert = { key: string; label: string; to: string; count: number; color: 'red' | 'amber' }
 
 type NavItem = { to: string; icon: string; label: string; key: FeatureKey }
 
@@ -45,6 +49,30 @@ export default function AppShell() {
   const primaryItems = items.slice(0, PRIMARY_COUNT)
   const moreItems    = items.slice(PRIMARY_COUNT)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [alerts, setAlerts] = useState<AppAlert[]>([])
+  const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    if (!state.user || state.user.role === 'staff' || !supabaseConfigured) return
+    const branch = state.user.role === 'supervisor' ? state.user.branch : undefined
+    Promise.all([
+      db.fetchMaintenanceReports(branch),
+      db.fetchLoanRequests(branch),
+    ]).then(([maint, loans]) => {
+      const result: AppAlert[] = []
+      const criticalCount = (maint ?? []).filter(
+        r => r.status !== 'resolved' && ['critical', 'high'].includes(r.priority)
+      ).length
+      const todayMidnight = new Date(); todayMidnight.setHours(0, 0, 0, 0)
+      const overdueCount = (loans ?? []).filter(
+        l => l.status === 'approved' && l.dueDate && new Date(l.dueDate) < todayMidnight
+      ).length
+      if (criticalCount > 0) result.push({ key: 'maintenance', label: `${criticalCount} ${s.alert_critical_maint}`, to: '/maintenance', count: criticalCount, color: 'red' })
+      if (overdueCount > 0) result.push({ key: 'loans', label: `${overdueCount} ${s.alert_overdue_loan}`, to: '/loans', count: overdueCount, color: 'amber' })
+      setAlerts(result)
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.user?.id])
 
   const pendingCount = (role === 'supervisor' || role === 'owner')
     ? state.submissions.filter(sub => sub.status === 'pending').length
@@ -145,6 +173,26 @@ export default function AppShell() {
             </div>
           </div>
         </header>
+
+        {/* Alert strip */}
+        {alerts.filter(a => !dismissedAlerts.has(a.key)).map(alert => (
+          <div
+            key={alert.key}
+            className={`flex items-center gap-3 px-5 py-2 text-xs font-medium border-b flex-shrink-0 ${
+              alert.color === 'red'
+                ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
+                : 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300'
+            }`}
+          >
+            <span>{alert.color === 'red' ? '🚨' : '⏰'}</span>
+            <NavLink to={alert.to} className="flex-1 hover:underline">{alert.label}</NavLink>
+            <button
+              onClick={() => setDismissedAlerts(prev => new Set([...prev, alert.key]))}
+              className="p-1 rounded hover:opacity-70 transition-opacity ml-1"
+              aria-label="Tutup"
+            >×</button>
+          </div>
+        ))}
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto p-5 pb-24 md:pb-5 main-content">

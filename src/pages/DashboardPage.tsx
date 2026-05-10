@@ -12,7 +12,7 @@ import Card from '../components/ui/Card'
 import Avatar from '../components/ui/Avatar'
 import Badge from '../components/ui/Badge'
 import StarRating from '../components/ui/StarRating'
-import type { Lang, MaintenanceCategory, MaintenancePriority, MaintenanceReport } from '../types'
+import type { Lang, MaintenanceCategory, MaintenancePriority, MaintenanceReport, User } from '../types'
 
 // ─── Shared helpers ───────────────────────────────────────────
 const TODAY = new Date()
@@ -213,6 +213,13 @@ function TaskTab({ range }: { range: DateRange }) {
   const s = STRINGS[lang]
   const allSubs = state.submissions
   const taskGroups = state.taskGroups
+  const role = state.user?.role
+  const [allUsers, setAllUsers] = useState<User[]>([])
+
+  useEffect(() => {
+    if (!supabaseConfigured) return
+    db.fetchUsers().then(u => { if (u) setAllUsers(u) })
+  }, [])
 
   const stats = useMemo(() => {
     const subs = allSubs.filter(sub => inRange(new Date(sub.submittedAt), range))
@@ -279,6 +286,14 @@ function TaskTab({ range }: { range: DateRange }) {
 
     return { total, approved, compRate, avgRating, staffCount: staffSet.size, trend, branches, topStaff, insightTask, insightCount }
   }, [allSubs, lang, range])
+
+  const inactiveStaff = useMemo(() => {
+    const todayNames = new Set(
+      allSubs.filter(sub => isSameDay(new Date(sub.submittedAt), TODAY)).map(sub => sub.staffName)
+    )
+    const branch = role === 'supervisor' ? state.user?.branch : undefined
+    return allUsers.filter(u => u.role === 'staff' && !todayNames.has(u.name) && (!branch || u.branch === branch))
+  }, [allUsers, allSubs, role, state.user?.branch])
 
   if (!state.dbReady) {
     return <div className="text-center py-20 text-[var(--text-muted)] text-sm">{s.loading}</div>
@@ -444,6 +459,57 @@ function TaskTab({ range }: { range: DateRange }) {
           </div>
         </div>
       ) : null}
+
+      {/* Branch Comparison — owner only */}
+      {role === 'owner' && stats.branches.length > 1 && (
+        <Card>
+          <h3 className="font-bold text-[var(--text)] mb-4">{s.dash_branch_comparison}</h3>
+          <div className="space-y-3">
+            {stats.branches.map(b => (
+              <div key={b.name}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-medium text-[var(--text)] truncate flex-1 mr-2">{b.name}</span>
+                  <span className={`text-xs font-bold flex-shrink-0 ${b.rate >= 80 ? 'text-emerald-600' : b.rate >= 50 ? 'text-amber-600' : 'text-red-500'}`}>
+                    {b.rate}%
+                  </span>
+                </div>
+                <div className="w-full bg-[var(--surface-2)] rounded-full h-2.5 overflow-hidden">
+                  <div
+                    className={`h-2.5 rounded-full transition-all duration-500 ${b.rate >= 80 ? 'bg-emerald-500' : b.rate >= 50 ? 'bg-amber-500' : 'bg-red-500'}`}
+                    style={{ width: `${b.rate}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Inactive Staff Today */}
+      <Card padding="none">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
+          <h3 className="font-bold text-sm text-[var(--text)]">{s.dash_inactive_staff}</h3>
+          {inactiveStaff.length > 0 && <Badge variant="warning">{inactiveStaff.length}</Badge>}
+        </div>
+        {inactiveStaff.length === 0 ? (
+          <div className="px-4 py-6 text-center">
+            <div className="text-2xl mb-1">✅</div>
+            <p className="text-sm text-[var(--text-muted)]">{s.dash_no_inactive}</p>
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2 px-4 py-3">
+            {inactiveStaff.map(u => (
+              <div key={u.id} className="flex items-center gap-2 bg-[var(--surface-2)] border border-[var(--border)] rounded-full pl-1 pr-3 py-1">
+                <span className="text-base">{u.avatar}</span>
+                <span className="text-xs font-medium text-[var(--text)]">{u.name.split(' ')[0]}</span>
+                {role === 'owner' && (
+                  <span className="text-[10px] text-[var(--text-muted)]">· {u.branch}</span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
     </div>
   )
 }

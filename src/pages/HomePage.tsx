@@ -12,6 +12,7 @@ import {
   getEnabled, setEnabled, useTaskReminders, sendNotification,
   type NotifPermission,
 } from '../lib/notifications'
+import SupervisorHomePage from './SupervisorHomePage'
 import type { TaskStatus } from '../types'
 
 function getGreeting(name: string, lang: 'bm' | 'en') {
@@ -31,6 +32,8 @@ export default function HomePage() {
   const lang = state.lang
   const s = STRINGS[lang]
   const ts = state.taskStates
+
+  if (state.user?.role !== 'staff') return <SupervisorHomePage />
 
   const shiftId  = state.shift?.id
   const userDept = state.user?.department
