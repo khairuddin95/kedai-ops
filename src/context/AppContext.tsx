@@ -11,16 +11,17 @@ import * as db from '../lib/db'
 // ─── State ────────────────────────────────────────────────────
 
 interface AppState {
-  user:               User | null
-  shift:              Shift | null
-  taskStates:         Record<string, TaskState>
-  submissions:        Submission[]
-  taskGroups:         TaskGroup[]
-  maintenanceReports: MaintenanceReport[]
-  loanRequests:       LoanRequest[]
-  lang:               Lang
-  dark:               boolean
-  dbReady:            boolean
+  user:                User | null
+  shift:               Shift | null
+  taskStates:          Record<string, TaskState>
+  submissions:         Submission[]
+  taskGroups:          TaskGroup[]
+  maintenanceReports:  MaintenanceReport[]
+  loanRequests:        LoanRequest[]
+  googleReviewPending: number
+  lang:                Lang
+  dark:                boolean
+  dbReady:             boolean
 }
 
 type Action =
@@ -48,6 +49,7 @@ type Action =
   | { type: 'ADD_LOAN_REQUEST';  loan: LoanRequest }
   | { type: 'UPDATE_LOAN_REQUEST'; id: string; updates: Partial<LoanRequest> }
   | { type: 'DELETE_LOAN_REQUEST'; id: string }
+  | { type: 'SET_GR_PENDING';   count: number }
   | { type: 'SET_LANG';         lang: Lang }
   | { type: 'TOGGLE_DARK' }
   | { type: 'SET_DB_READY' }
@@ -127,6 +129,8 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, loanRequests: state.loanRequests.map(l => l.id === action.id ? { ...l, ...action.updates } : l) }
     case 'DELETE_LOAN_REQUEST':
       return { ...state, loanRequests: state.loanRequests.filter(l => l.id !== action.id) }
+    case 'SET_GR_PENDING':
+      return { ...state, googleReviewPending: action.count }
     case 'SET_LANG':
       return { ...state, lang: action.lang }
     case 'TOGGLE_DARK':
@@ -156,16 +160,17 @@ function readSession(): { user: User | null; shift: Shift | null } {
 const { user: savedUser, shift: savedShift } = readSession()
 
 const init: AppState = {
-  user:               savedUser,
-  shift:              savedShift,
-  taskStates:         {},
-  submissions:        MOCK_SUBS,
-  taskGroups:         MOCK_GROUPS,
-  maintenanceReports: [],
-  loanRequests:       [],
-  lang:               (localStorage.getItem('lang') as Lang) ?? 'bm',
-  dark:               localStorage.getItem('dark') === 'true',
-  dbReady:            !supabaseConfigured,
+  user:                savedUser,
+  shift:               savedShift,
+  taskStates:          {},
+  submissions:         MOCK_SUBS,
+  taskGroups:          MOCK_GROUPS,
+  maintenanceReports:  [],
+  loanRequests:        [],
+  googleReviewPending: 0,
+  lang:                (localStorage.getItem('lang') as Lang) ?? 'bm',
+  dark:                localStorage.getItem('dark') === 'true',
+  dbReady:             !supabaseConfigured,
 }
 
 // ─── Context ──────────────────────────────────────────────────
@@ -233,18 +238,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!state.user || !supabaseConfigured) return
     const isStaff = state.user.role === 'staff'
     ;(async () => {
-      const [states, subs, groups, maint, loans] = await Promise.all([
+      const [states, subs, groups, maint, loans, grLogs] = await Promise.all([
         db.fetchTaskStates(state.user!.id),
         db.fetchSubmissions(90),
         db.fetchTaskGroups(),
         isStaff ? Promise.resolve(null) : db.fetchMaintenanceReports(),
         isStaff ? Promise.resolve(null) : db.fetchLoanRequests(),
+        isStaff ? Promise.resolve(null) : db.fetchGoogleReviewLogs(7),
       ])
-      if (states) dispatch({ type: 'SET_TASK_STATES',         states })
-      if (subs)   dispatch({ type: 'SET_SUBMISSIONS',          subs })
-      if (groups) dispatch({ type: 'SET_TASK_GROUPS',          groups })
-      if (maint)  dispatch({ type: 'SET_MAINTENANCE_REPORTS',  reports: maint })
-      if (loans)  dispatch({ type: 'SET_LOAN_REQUESTS',        loans })
+      if (states)  dispatch({ type: 'SET_TASK_STATES',         states })
+      if (subs)    dispatch({ type: 'SET_SUBMISSIONS',          subs })
+      if (groups)  dispatch({ type: 'SET_TASK_GROUPS',          groups })
+      if (maint)   dispatch({ type: 'SET_MAINTENANCE_REPORTS',  reports: maint })
+      if (loans)   dispatch({ type: 'SET_LOAN_REQUESTS',        loans })
+      if (grLogs)  dispatch({ type: 'SET_GR_PENDING',           count: grLogs.filter(l => l.status === 'pending').length })
       dispatch({ type: 'SET_DB_READY' })
     })()
   }, [state.user?.id])
@@ -333,6 +340,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .on('postgres_changes', mkOpts('DELETE'), ({ old: row }: any) => {
         if (row?.id) dispatch({ type: 'DELETE_LOAN_REQUEST', id: row.id as string })
       })
+      .subscribe()
+    return () => { supabase!.removeChannel(channel) }
+  }, [state.user?.id, state.user?.role, dispatch])
+
+  // Realtime — google_review_logs pending count (supervisor & owner)
+  useEffect(() => {
+    if (!supabase || !state.user || state.user.role === 'staff') return
+    const refresh = () => {
+      db.fetchGoogleReviewLogs(7).then(logs => {
+        if (logs) dispatch({ type: 'SET_GR_PENDING', count: logs.filter(l => l.status === 'pending').length })
+      })
+    }
+    const mkOpts = (event: 'INSERT' | 'UPDATE') => ({
+      event, schema: 'public' as const, table: 'google_review_logs',
+    })
+    const channel = supabase!
+      .channel('app-gr')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .on('postgres_changes', mkOpts('INSERT'), ({ new: row }: any) => { if (row?.id) refresh() })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .on('postgres_changes', mkOpts('UPDATE'), ({ new: row }: any) => { if (row?.id) refresh() })
       .subscribe()
     return () => { supabase!.removeChannel(channel) }
   }, [state.user?.id, state.user?.role, dispatch])

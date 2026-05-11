@@ -68,7 +68,11 @@ export default function AppShell() {
     ? state.submissions.filter(sub => sub.status === 'pending').length
     : 0
 
-  // OS notification when a new pending submission arrives
+  const grPendingCount = (role === 'supervisor' || role === 'owner')
+    ? state.googleReviewPending
+    : 0
+
+  // OS notification when a new pending task submission arrives
   const prevPendingRef = useRef<number | null>(null)
   useEffect(() => {
     if (role === 'staff') return
@@ -84,6 +88,22 @@ export default function AppShell() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingCount, role])
+
+  // OS notification when a new pending Google Review arrives
+  const prevGrPendingRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (role === 'staff') return
+    const prev = prevGrPendingRef.current
+    prevGrPendingRef.current = grPendingCount
+    if (prev !== null && grPendingCount > prev) {
+      sendNotification(
+        '⭐ Google Review Baru',
+        'Ada bukti review menunggu kelulusan',
+        'new_google_review'
+      )
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [grPendingCount, role])
 
   const handleLogout = () => {
     dispatch({ type: 'LOGOUT' })
@@ -125,6 +145,11 @@ export default function AppShell() {
               {item.to === '/review' && pendingCount > 0 && (
                 <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-none">
                   {pendingCount > 99 ? '99+' : pendingCount}
+                </span>
+              )}
+              {item.to === '/google-review' && grPendingCount > 0 && (
+                <span className="bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-none">
+                  {grPendingCount > 99 ? '99+' : grPendingCount}
                 </span>
               )}
             </NavLink>
@@ -216,6 +241,11 @@ export default function AppShell() {
                   {pendingCount > 9 ? '9+' : pendingCount}
                 </span>
               )}
+              {item.to === '/google-review' && grPendingCount > 0 && (
+                <span className="absolute -top-1 -right-1.5 bg-amber-500 text-white text-[9px] font-bold px-1 rounded-full min-w-[14px] text-center leading-none py-0.5">
+                  {grPendingCount > 9 ? '9+' : grPendingCount}
+                </span>
+              )}
             </div>
             <span className="truncate max-w-[52px] text-center leading-tight">{item.label}</span>
           </NavLink>
@@ -282,6 +312,11 @@ export default function AppShell() {
                     {item.to === '/review' && pendingCount > 0 && (
                       <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-none">
                         {pendingCount > 99 ? '99+' : pendingCount}
+                      </span>
+                    )}
+                    {item.to === '/google-review' && grPendingCount > 0 && (
+                      <span className="bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-none">
+                        {grPendingCount > 99 ? '99+' : grPendingCount}
                       </span>
                     )}
                   </NavLink>
