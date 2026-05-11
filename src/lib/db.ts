@@ -290,7 +290,10 @@ export async function fetchSubmissions(days = 90, branch?: string): Promise<Subm
     .select('*')
     .gte('submitted_at', since.toISOString())
     .order('submitted_at', { ascending: false })
-  if (branch) q = q.eq('branch', branch)
+  const catchAll = ['all', 'semua', 'semua cawangan', 'all branches']
+  if (branch && !catchAll.includes(branch.toLowerCase().trim())) {
+    q = q.ilike('branch', branch)
+  }
   const { data, error } = await q
   if (error) { console.error('[db] fetchSubmissions:', error); return null }
   return (data ?? []).map(submissionFromDb)
@@ -329,12 +332,14 @@ export async function updateSubmissionStatus(
   supervisorComment?: string
 ): Promise<boolean> {
   if (!supabase) return false
-  const { error } = await supabase
-    .from('submissions')
-    .update({ status, supervisor_comment: supervisorComment ?? null })
-    .eq('id', id)
+  const { data, error } = await supabase
+    .rpc('review_submission', {
+      p_id:      id,
+      p_status:  status,
+      p_comment: supervisorComment ?? null,
+    })
   if (error) { console.error('[db] updateSubmission:', error); return false }
-  return true
+  return data === true
 }
 
 // ─── Task States ─────────────────────────────────────────────

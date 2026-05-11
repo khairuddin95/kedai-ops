@@ -1,12 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useApp } from '../../context/AppContext'
 import { STRINGS } from '../../utils/i18n'
 import Avatar from '../ui/Avatar'
 import { sendNotification } from '../../lib/notifications'
 import { hasFeature } from '../../utils/permissions'
-import { supabaseConfigured } from '../../lib/supabase'
-import * as db from '../../lib/db'
 import type { FeatureKey, User } from '../../types'
 
 type AppAlert = { key: string; label: string; to: string; count: number; color: 'red' | 'amber' }
@@ -49,30 +47,22 @@ export default function AppShell() {
   const primaryItems = items.slice(0, PRIMARY_COUNT)
   const moreItems    = items.slice(PRIMARY_COUNT)
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [alerts, setAlerts] = useState<AppAlert[]>([])
   const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set())
 
-  useEffect(() => {
-    if (!state.user || state.user.role === 'staff' || !supabaseConfigured) return
-    const branch = state.user.role === 'supervisor' ? state.user.branch : undefined
-    Promise.all([
-      db.fetchMaintenanceReports(branch),
-      db.fetchLoanRequests(branch),
-    ]).then(([maint, loans]) => {
-      const result: AppAlert[] = []
-      const criticalCount = (maint ?? []).filter(
-        r => r.status !== 'resolved' && ['critical', 'high'].includes(r.priority)
-      ).length
-      const todayMidnight = new Date(); todayMidnight.setHours(0, 0, 0, 0)
-      const overdueCount = (loans ?? []).filter(
-        l => l.status === 'approved' && l.dueDate && new Date(l.dueDate) < todayMidnight
-      ).length
-      if (criticalCount > 0) result.push({ key: 'maintenance', label: `${criticalCount} ${s.alert_critical_maint}`, to: '/maintenance', count: criticalCount, color: 'red' })
-      if (overdueCount > 0) result.push({ key: 'loans', label: `${overdueCount} ${s.alert_overdue_loan}`, to: '/loans', count: overdueCount, color: 'amber' })
-      setAlerts(result)
-    })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.user?.id])
+  const alerts = useMemo<AppAlert[]>(() => {
+    if (!state.user || state.user.role === 'staff') return []
+    const todayMidnight = new Date(); todayMidnight.setHours(0, 0, 0, 0)
+    const criticalCount = state.maintenanceReports.filter(
+      r => r.status !== 'resolved' && ['critical', 'high'].includes(r.priority)
+    ).length
+    const overdueCount = state.loanRequests.filter(
+      l => l.status === 'approved' && l.dueDate && new Date(l.dueDate) < todayMidnight
+    ).length
+    const result: AppAlert[] = []
+    if (criticalCount > 0) result.push({ key: 'maintenance', label: `${criticalCount} ${s.alert_critical_maint}`, to: '/maintenance', count: criticalCount, color: 'red' })
+    if (overdueCount > 0) result.push({ key: 'loans', label: `${overdueCount} ${s.alert_overdue_loan}`, to: '/loans', count: overdueCount, color: 'amber' })
+    return result
+  }, [state.user, state.maintenanceReports, state.loanRequests, s])
 
   const pendingCount = (role === 'supervisor' || role === 'owner')
     ? state.submissions.filter(sub => sub.status === 'pending').length

@@ -5,7 +5,6 @@ import { STRINGS, langLocale } from '../utils/i18n'
 import Card from '../components/ui/Card'
 import { supabaseConfigured } from '../lib/supabase'
 import * as db from '../lib/db'
-import type { MaintenanceReport, LoanRequest } from '../types'
 
 function getGreeting(name: string, lang: 'bm' | 'en') {
   const h = new Date().getHours()
@@ -28,10 +27,9 @@ export default function SupervisorHomePage() {
   const lang = state.lang
   const s = STRINGS[lang]
   const role = state.user?.role
-  const branch = role === 'supervisor' ? state.user?.branch : undefined
 
-  const [maintenance, setMaintenance] = useState<MaintenanceReport[]>([])
-  const [loans, setLoans] = useState<LoanRequest[]>([])
+  const maintenance = state.maintenanceReports
+  const loans = state.loanRequests
   const [staffTodayCount, setStaffTodayCount] = useState(0)
   const [loading, setLoading] = useState(true)
 
@@ -39,13 +37,7 @@ export default function SupervisorHomePage() {
     if (!supabaseConfigured) { setLoading(false); return }
     const todayDow = new Date().getDay()
     ;(async () => {
-      const [maint, loanData, schedules] = await Promise.all([
-        db.fetchMaintenanceReports(branch),
-        db.fetchLoanRequests(branch),
-        db.fetchSchedules(),
-      ])
-      setMaintenance(maint ?? [])
-      setLoans(loanData ?? [])
+      const schedules = await db.fetchSchedules()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const todayCount = (schedules as any[]).filter(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -54,7 +46,7 @@ export default function SupervisorHomePage() {
       setStaffTodayCount(todayCount)
       setLoading(false)
     })()
-  }, [branch])
+  }, [])
 
   const today = new Date().toLocaleDateString(langLocale(lang), {
     weekday: 'long', day: 'numeric', month: 'long',
@@ -91,7 +83,7 @@ export default function SupervisorHomePage() {
     },
     {
       icon: '👥', label: s.sup_staff_today, value: staffTodayCount,
-      to: '/schedule', color: '#10b981',
+      to: '/dashboard', color: '#10b981',
       bg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-emerald-200 dark:border-emerald-800',
     },
   ]
@@ -100,7 +92,7 @@ export default function SupervisorHomePage() {
     { icon: '📊', label: 'Dashboard', to: '/dashboard' },
     { icon: '🔍', label: s.review ?? 'Semakan', to: '/review' },
     { icon: '🔧', label: s.maintenance ?? 'Maintenance', to: '/maintenance' },
-    { icon: '📅', label: s.nav_schedule ?? 'Jadual', to: '/schedule' },
+    { icon: '📦', label: s.loans ?? 'Pinjaman', to: '/loans' },
   ]
 
   return (

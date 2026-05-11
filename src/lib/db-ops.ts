@@ -4,7 +4,7 @@
  * All callers use `import * as db from './db'` which re-exports everything here.
  */
 import { supabase } from './supabase'
-import type { Asset, Branch, LoanRequest, MaintenanceReport } from '../types'
+import type { Asset, Branch, GoogleReviewLog, LoanRequest, MaintenanceReport } from '../types'
 
 // ─── Assets ──────────────────────────────────────────────────
 
@@ -150,10 +150,15 @@ export async function uploadMaintenancePhoto(file: File, reportId: string, index
   return data.publicUrl
 }
 
+const CATCH_ALL_BRANCHES = ['all', 'semua', 'semua cawangan', 'all branches']
+function isCatchAll(branch?: string) {
+  return !branch || CATCH_ALL_BRANCHES.includes(branch.toLowerCase().trim())
+}
+
 export async function fetchMaintenanceReports(branch?: string): Promise<MaintenanceReport[] | null> {
   if (!supabase) return null
   let q = supabase.from('maintenance_reports').select('*').order('reported_at', { ascending: false })
-  if (branch) q = q.eq('branch', branch)
+  if (!isCatchAll(branch)) q = q.ilike('branch', branch!)
   const { data, error } = await q
   if (error) { console.error('[db] fetchMaintenanceReports:', error); return null }
   return (data ?? []).map(maintFromDb)
@@ -227,7 +232,7 @@ function loanFromDb(r: {
 export async function fetchLoanRequests(branch?: string): Promise<LoanRequest[] | null> {
   if (!supabase) return null
   let q = supabase.from('loan_requests').select('*').order('requested_at', { ascending: false })
-  if (branch) q = q.eq('branch', branch)
+  if (!isCatchAll(branch)) q = q.ilike('branch', branch!)
   const { data, error } = await q
   if (error) { console.error('[db] fetchLoanRequests:', error); return null }
   return (data ?? []).map(loanFromDb)
@@ -309,4 +314,80 @@ export async function getUserTodayShift(userId: string): Promise<import('../type
   const day = new Date().getDay()
   const { data } = await supabase.from('schedules').select('shift_id').eq('user_id', userId).eq('day_of_week', day).maybeSingle()
   return (data?.shift_id as import('../types').ShiftId) ?? null
+}
+
+// ─── Google Review Logs ───────────────────────────────────────
+
+function grLogFromDb(r: {
+  id: string; staff_id: string | null; staff_name: string; staff_avatar: string
+  branch: string; photo_url: string; logged_at: string; status: string
+  reviewed_by_name: string | null; supervisor_note: string | null; reviewed_at: string | null
+}): GoogleReviewLog {
+  return {
+    id: r.id,
+    staffId: r.staff_id ?? '',
+    staffName: r.staff_name,
+    staffAvatar: r.staff_avatar,
+    branch: r.branch,
+    photoUrl: r.photo_url,
+    loggedAt: new Date(r.logged_at),
+    status: r.status as GoogleReviewLog['status'],
+    reviewedByName: r.reviewed_by_name ?? undefined,
+    supervisorNote: r.supervisor_note ?? undefined,
+    reviewedAt: r.reviewed_at ? new Date(r.reviewed_at) : undefined,
+  }
+}
+
+export async function fetchGoogleReviewLogs(days = 1, branch?: string): Promise<GoogleReviewLog[] | null> {
+  if (!supabase) return null
+  const since = new Date()
+  since.setDate(since.getDate() - days)
+  let q = supabase
+    .from('google_review_logs')
+    .select('*')
+    .gte('logged_at', since.toISOString())
+    .order('logged_at', { ascending: false })
+  const catchAll = ['all', 'semua', 'semua cawangan', 'all branches']
+  if (branch && !catchAll.includes(branch.toLowerCase().trim())) {
+    q = q.ilike('branch', branch)
+  }
+  const { data, error } = await q
+  if (error) { console.error('[db] fetchGoogleReviewLogs:', error); return null }
+  return (data ?? []).map(grLogFromDb)
+}
+
+export async function insertGoogleReviewLog(
+  log: Omit<GoogleReviewLog, 'id' | 'loggedAt' | 'status' | 'reviewedByName' | 'supervisorNote' | 'reviewedAt'>
+): Promise<GoogleReviewLog | null> {
+  if (!supabase) return null
+  const { data, error } = await supabase
+    .from('google_review_logs')
+    .insert({
+      staff_id:     log.staffId || null,
+      staff_name:   log.staffName,
+      staff_avatar: log.staffAvatar,
+      branch:       log.branch,
+      photo_url:    log.photoUrl,
+    })
+    .select()
+    .single()
+  if (error) { console.error('[db] insertGoogleReviewLog:', error); return null }
+  return data ? grLogFromDb(data) : null
+}
+
+export async function reviewGoogleLog(
+  id: string,
+  status: 'approved' | 'rejected',
+  reviewerName: string,
+  note?: string
+): Promise<boolean> {
+  if (!supabase) return false
+  const { data, error } = await supabase.rpc('review_google_log', {
+    p_id:            id,
+    p_status:        status,
+    p_reviewer_name: reviewerName,
+    p_note:          note ?? null,
+  })
+  if (error) { console.error('[db] reviewGoogleLog:', error); return false }
+  return data === true
 }

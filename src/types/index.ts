@@ -143,6 +143,22 @@ export interface LoanRequest {
   returnedAt?: Date
 }
 
+export type GoogleReviewLogStatus = 'pending' | 'approved' | 'rejected'
+
+export interface GoogleReviewLog {
+  id: string
+  staffId: string
+  staffName: string
+  staffAvatar: string
+  branch: string
+  photoUrl: string
+  loggedAt: Date
+  status: GoogleReviewLogStatus
+  reviewedByName?: string
+  supervisorNote?: string
+  reviewedAt?: Date
+}
+
 export type AssetCondition = 'good' | 'fair' | 'poor'
 
 export interface Asset {

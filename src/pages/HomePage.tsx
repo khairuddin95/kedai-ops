@@ -6,7 +6,9 @@ import Card from '../components/ui/Card'
 import ProgressBar from '../components/ui/ProgressBar'
 import { TaskStatusBadge } from '../components/ui/Badge'
 import GroupIcon from '../components/ui/GroupIcon'
-import { loadTodayReviews, getReviewTarget } from './GoogleReviewPage'
+import { getReviewTarget } from './GoogleReviewPage'
+import * as db from '../lib/db'
+import { supabaseConfigured } from '../lib/supabase'
 import {
   notifSupported, getPermission, requestPermission,
   getEnabled, setEnabled, useTaskReminders, sendNotification,
@@ -43,6 +45,19 @@ export default function HomePage() {
     (g.frequency !== 'weekly' || isSunday) &&
     (!userDept || g.department === 'all' || g.department === userDept)
   )
+
+  // ── Google Review count (approved today) ──────────────────
+  const [grApprovedCount, setGrApprovedCount] = useState(0)
+  const grTarget = getReviewTarget()
+
+  useEffect(() => {
+    if (!supabaseConfigured) return
+    db.fetchGoogleReviewLogs(1, state.user?.branch).then(data => {
+      if (!data) return
+      const mine = data.filter(l => l.staffId === state.user?.id && l.status === 'approved')
+      setGrApprovedCount(mine.length)
+    })
+  }, [state.user?.id, state.user?.branch])
 
   // ── Notifications ──────────────────────────────────────────
   const [permission, setPermission] = useState<NotifPermission>(() => getPermission())
@@ -203,23 +218,17 @@ export default function HomePage() {
 
       {/* Google Review task card */}
       {(() => {
-        const grLogs   = loadTodayReviews()
-        const grTarget = getReviewTarget()
-        const grCount  = grLogs.length
-        const grPct    = Math.min(100, Math.round((grCount / grTarget) * 100))
-        const grDone   = grCount >= grTarget
+        const grPct  = Math.min(100, Math.round((grApprovedCount / grTarget) * 100))
+        const grDone = grApprovedCount >= grTarget
         return (
-          <button
-            onClick={() => navigate('/google-review')}
-            className="w-full text-left"
-          >
+          <button onClick={() => navigate('/google-review')} className="w-full text-left">
             <Card hover padding="none">
               <div className="flex items-center gap-3 p-4 border-b border-[var(--border)]">
                 <div className="w-9 h-9 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-xl flex-shrink-0">⭐</div>
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-sm text-[var(--text)]">{s.google_review}</div>
                   <div className="text-xs text-[var(--text-muted)]">
-                    {grDone ? s.gr_target_short : `${grCount}/${grTarget} ${s.gr_reviews_count}`}
+                    {grDone ? s.gr_target_short : `${grApprovedCount}/${grTarget} ${s.gr_reviews_count}`}
                   </div>
                 </div>
                 <span className={`text-xs font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${

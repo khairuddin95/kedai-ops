@@ -29,7 +29,7 @@ export default function ReviewPage() {
     if (!state.user || refreshingRef.current || !supabaseConfigured) return
     refreshingRef.current = true
     setRefreshing(true)
-    const subs = await db.fetchSubmissions(90, state.user.role === 'supervisor' ? state.user.branch : undefined)
+    const subs = await db.fetchSubmissions(90)
     if (subs) dispatch({ type: 'SET_SUBMISSIONS', subs })
     refreshingRef.current = false
     setRefreshing(false)

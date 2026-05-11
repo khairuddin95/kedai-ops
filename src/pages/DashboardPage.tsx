@@ -12,7 +12,7 @@ import Card from '../components/ui/Card'
 import Avatar from '../components/ui/Avatar'
 import Badge from '../components/ui/Badge'
 import StarRating from '../components/ui/StarRating'
-import type { Lang, MaintenanceCategory, MaintenancePriority, MaintenanceReport, User } from '../types'
+import type { Lang, MaintenanceCategory, MaintenancePriority, User } from '../types'
 
 // ─── Shared helpers ───────────────────────────────────────────
 const TODAY = new Date()
@@ -519,18 +519,7 @@ function MaintenanceTab({ range }: { range: DateRange }) {
   const { state } = useApp()
   const s = STRINGS[state.lang]
   const navigate = useNavigate()
-  const [reports, setReports] = useState<MaintenanceReport[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    ;(async () => {
-      setLoading(true)
-      const branch = state.user?.role === 'supervisor' ? state.user.branch : undefined
-      const data = supabaseConfigured ? await db.fetchMaintenanceReports(branch) : []
-      setReports(data ?? [])
-      setLoading(false)
-    })()
-  }, [])
+  const reports = state.maintenanceReports
 
   const stats = useMemo(() => {
     const inRangeReports = reports.filter(r => inRange(r.reportedAt, range))
@@ -601,9 +590,9 @@ function MaintenanceTab({ range }: { range: DateRange }) {
       .slice(0, 8)
 
     return { total, urgentCount: urgent.length, inProgressCount: inProgress.length, resolvedMonthCount: resolvedMonth.length, avgResolve, statusData, categoryData, priorityData, branches, trend, urgentList }
-  }, [reports, state.lang, s, range])
+  }, [reports, state.lang, s, range, state.dbReady])
 
-  if (loading) {
+  if (!state.dbReady) {
     return <div className="text-center py-20 text-[var(--text-muted)] text-sm">{s.loading}</div>
   }
 
