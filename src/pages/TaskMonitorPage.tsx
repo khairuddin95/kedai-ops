@@ -1,12 +1,10 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useApp } from '../context/AppContext'
 import { STRINGS } from '../utils/i18n'
 import Card from '../components/ui/Card'
 import Avatar from '../components/ui/Avatar'
 import GroupIcon from '../components/ui/GroupIcon'
-import * as db from '../lib/db'
-import { supabaseConfigured } from '../lib/supabase'
-import type { User, ShiftId } from '../types'
+import type { ShiftId } from '../types'
 
 type ShiftFilter = 'all' | ShiftId
 
@@ -27,24 +25,8 @@ export default function TaskMonitorPage() {
   const lang = state.lang
   const s = STRINGS[lang]
 
-  const [staffList, setStaffList] = useState<User[]>([])
   const [shiftFilter, setShiftFilter] = useState<ShiftFilter>('all')
   const [showPendingOnly, setShowPendingOnly] = useState(false)
-
-  useEffect(() => {
-    if (!supabaseConfigured) return
-    db.fetchUsers().then(users => {
-      if (!users) return
-      const branch = state.user?.branch ?? ''
-      const catchAll = ['all', 'semua', 'semua cawangan', 'all branches']
-      setStaffList(
-        users.filter(u =>
-          u.role === 'staff' &&
-          (catchAll.includes(branch.toLowerCase()) || u.branch.toLowerCase() === branch.toLowerCase())
-        )
-      )
-    })
-  }, [state.user?.branch])
 
   const todayMs = todayStart().getTime()
 
@@ -61,13 +43,11 @@ export default function TaskMonitorPage() {
     })
   }, [state.taskGroups, shiftFilter])
 
-  // Total pending tasks across all filtered groups
   const totalPending = useMemo(() => {
     let count = 0
     for (const g of filteredGroups) {
       for (const t of g.tasks) {
-        const subs = todaySubmissions.filter(sub => sub.taskId === t.id)
-        if (subs.length === 0) count++
+        if (!todaySubmissions.some(sub => sub.taskId === t.id)) count++
       }
     }
     return count
@@ -99,18 +79,17 @@ export default function TaskMonitorPage() {
         </span>
         {totalPending > 0 ? (
           <span className="px-3 py-1.5 rounded-full text-xs font-semibold bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">
-            ❌ {totalPending} {lang === 'bm' ? 'belum ada submission' : 'no submission yet'}
+            ❌ {totalPending} {lang === 'bm' ? 'belum siap' : 'not done'}
           </span>
         ) : (
           <span className="px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">
-            ✅ {lang === 'bm' ? 'Semua ada submission' : 'All tasks submitted'}
+            ✅ {lang === 'bm' ? 'Semua dah siap' : 'All done'}
           </span>
         )}
       </div>
 
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
-        {/* Shift tabs */}
         <div className="flex gap-1 p-1 bg-[var(--surface-2)] rounded-xl">
           {shiftTabs.map(t => (
             <button
@@ -127,7 +106,6 @@ export default function TaskMonitorPage() {
           ))}
         </div>
 
-        {/* Pending only toggle */}
         <button
           onClick={() => setShowPendingOnly(v => !v)}
           className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
@@ -152,12 +130,12 @@ export default function TaskMonitorPage() {
         <div className="space-y-4">
           {filteredGroups.map(group => {
             const tasksToShow = showPendingOnly
-              ? group.tasks.filter(t => todaySubmissions.filter(sub => sub.taskId === t.id).length === 0)
+              ? group.tasks.filter(t => !todaySubmissions.some(sub => sub.taskId === t.id))
               : group.tasks
 
             if (showPendingOnly && tasksToShow.length === 0) return null
 
-            const groupDone = group.tasks.filter(t => todaySubmissions.some(sub => sub.taskId === t.id)).length
+            const groupDone  = group.tasks.filter(t => todaySubmissions.some(sub => sub.taskId === t.id)).length
             const groupTotal = group.tasks.length
 
             return (
@@ -199,75 +177,38 @@ export default function TaskMonitorPage() {
                       return acc
                     }, [])
 
-                    // Staff who haven't submitted (if we have staff list)
-                    const pending = staffList.filter(
-                      u => !subs.some(sub => sub.staffName === u.name)
-                    )
-
                     return (
-                      <div key={task.id} className="px-4 py-3">
-                        <div className="flex items-start gap-3">
-                          {/* Status icon */}
-                          <span className={`text-base flex-shrink-0 mt-0.5 ${hasSub ? 'opacity-100' : 'opacity-100'}`}>
-                            {hasSub ? '✅' : '❌'}
-                          </span>
+                      <div key={task.id} className="px-4 py-3 flex items-start gap-3">
+                        <span className="text-base flex-shrink-0 mt-0.5">
+                          {hasSub ? '✅' : '❌'}
+                        </span>
 
-                          <div className="flex-1 min-w-0">
-                            <div className={`text-sm font-medium ${hasSub ? 'text-[var(--text)]' : 'text-red-600 dark:text-red-400'}`}>
-                              {task.title}
-                            </div>
-
-                            {hasSub ? (
-                              <div className="mt-1.5 flex flex-wrap gap-1.5">
-                                {submitters.map(staff => (
-                                  <div key={staff.name} className="flex items-center gap-1 bg-emerald-50 dark:bg-emerald-900/20 rounded-full pl-1 pr-2.5 py-0.5">
-                                    <Avatar emoji={staff.avatar} size="sm" />
-                                    <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-300">{staff.name}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="mt-1">
-                                {staffList.length > 0 ? (
-                                  <div className="flex flex-wrap gap-1.5">
-                                    {pending.map(u => (
-                                      <div key={u.id} className="flex items-center gap-1 bg-red-50 dark:bg-red-900/20 rounded-full pl-1 pr-2.5 py-0.5">
-                                        <Avatar emoji={u.avatar} size="sm" />
-                                        <span className="text-[11px] font-medium text-red-600 dark:text-red-400">{u.name}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <span className="text-xs text-[var(--text-muted)]">
-                                    {lang === 'bm' ? 'Belum ada submission' : 'No submission yet'}
-                                  </span>
-                                )}
-                              </div>
-                            )}
-
-                            {/* Partial: show who hasn't submitted */}
-                            {hasSub && staffList.length > 0 && pending.length > 0 && (
-                              <div className="mt-1.5 flex flex-wrap gap-1.5">
-                                {pending.map(u => (
-                                  <div key={u.id} className="flex items-center gap-1 bg-amber-50 dark:bg-amber-900/20 rounded-full pl-1 pr-2.5 py-0.5">
-                                    <Avatar emoji={u.avatar} size="sm" />
-                                    <span className="text-[11px] font-medium text-amber-700 dark:text-amber-400">{u.name}</span>
-                                  </div>
-                                ))}
-                                <span className="text-[11px] text-[var(--text-muted)] self-center">
-                                  {lang === 'bm' ? 'belum' : 'pending'}
-                                </span>
-                              </div>
-                            )}
+                        <div className="flex-1 min-w-0">
+                          <div className={`text-sm font-medium ${hasSub ? 'text-[var(--text)]' : 'text-red-600 dark:text-red-400'}`}>
+                            {task.title}
                           </div>
 
-                          {/* Submission count */}
-                          {subs.length > 0 && (
-                            <span className="text-xs text-[var(--text-muted)] flex-shrink-0 mt-0.5">
-                              {subs.length}×
-                            </span>
+                          {hasSub ? (
+                            <div className="mt-1.5 flex flex-wrap gap-1.5">
+                              {submitters.map(staff => (
+                                <div key={staff.name} className="flex items-center gap-1 bg-emerald-50 dark:bg-emerald-900/20 rounded-full pl-1 pr-2.5 py-0.5">
+                                  <Avatar emoji={staff.avatar} size="sm" />
+                                  <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-300">{staff.name}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                              {lang === 'bm' ? 'Belum ada submission' : 'No submission yet'}
+                            </p>
                           )}
                         </div>
+
+                        {subs.length > 1 && (
+                          <span className="text-xs text-[var(--text-muted)] flex-shrink-0 mt-0.5">
+                            {subs.length}×
+                          </span>
+                        )}
                       </div>
                     )
                   })}
