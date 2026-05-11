@@ -16,6 +16,7 @@ const ALL_NAV: NavItem[] = [
   { key: 'tasks',         to: '/tasks',         icon: '📋', label: 'tasks' },
   { key: 'dashboard',     to: '/dashboard',     icon: '📊', label: 'dashboard' },
   { key: 'review',        to: '/review',        icon: '🔍', label: 'review' },
+  { key: 'task-monitor',  to: '/task-monitor',  icon: '📌', label: 'task_monitor' },
   { key: 'schedule',      to: '/schedule',      icon: '📅', label: 'nav_schedule' },
   { key: 'maintenance',   to: '/maintenance',   icon: '🔧', label: 'maintenance' },
   { key: 'loans',         to: '/loans',         icon: '📦', label: 'loan_item' },

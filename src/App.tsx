@@ -17,9 +17,10 @@ import AssetPage        from './pages/AssetPage'
 import BranchPage       from './pages/BranchPage'
 import MaintenancePage  from './pages/MaintenancePage'
 import LoanPage         from './pages/LoanPage'
-import GoogleReviewPage from './pages/GoogleReviewPage'
-import SchedulePage     from './pages/SchedulePage'
-import SettingsPage     from './pages/SettingsPage'
+import GoogleReviewPage  from './pages/GoogleReviewPage'
+import SchedulePage      from './pages/SchedulePage'
+import TaskMonitorPage   from './pages/TaskMonitorPage'
+import SettingsPage      from './pages/SettingsPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { state } = useApp()
@@ -58,8 +59,9 @@ function AppRoutes() {
         <Route path="maintenance"  element={<RequireFeature feature="maintenance"><MaintenancePage /></RequireFeature>} />
         <Route path="loans"        element={<RequireFeature feature="loans"><LoanPage /></RequireFeature>} />
         <Route path="schedule"     element={<RequireFeature feature="schedule"><SchedulePage /></RequireFeature>} />
-        <Route path="google-review" element={<GoogleReviewPage />} />
-        <Route path="settings"      element={<SettingsPage />} />
+        <Route path="google-review"  element={<GoogleReviewPage />} />
+        <Route path="task-monitor"   element={<RequireFeature feature="task-monitor"><TaskMonitorPage /></RequireFeature>} />
+        <Route path="settings"       element={<SettingsPage />} />
         <Route path="*" element={<Navigate to={state.user?.role === 'staff' ? '/' : '/dashboard'} replace />} />
       </Route>
       <Route path="*" element={<Navigate to="/login" replace />} />

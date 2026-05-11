@@ -3,11 +3,11 @@ import type { FeatureKey, User, UserRole } from '../types'
 export const DEFAULT_FEATURES: Record<UserRole, FeatureKey[]> = {
   staff: ['home', 'tasks', 'google-review', 'history', 'settings'],
   supervisor: [
-    'dashboard', 'review', 'maintenance', 'loans',
+    'dashboard', 'review', 'task-monitor', 'maintenance', 'loans',
     'assets', 'google-review', 'history', 'settings',
   ],
   owner: [
-    'dashboard', 'review', 'schedule', 'maintenance', 'loans',
+    'dashboard', 'review', 'task-monitor', 'schedule', 'maintenance', 'loans',
     'tasks-admin', 'assets', 'branches', 'staff',
     'google-review', 'history', 'settings',
   ],

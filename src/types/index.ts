@@ -63,7 +63,7 @@ export type UserRole = 'staff' | 'supervisor' | 'owner'
 export const FEATURES = [
   'home', 'tasks', 'dashboard', 'review', 'schedule', 'maintenance', 'loans',
   'tasks-admin', 'assets', 'branches', 'staff',
-  'google-review', 'history', 'settings',
+  'google-review', 'task-monitor', 'history', 'settings',
 ] as const
 
 export type FeatureKey = typeof FEATURES[number]
